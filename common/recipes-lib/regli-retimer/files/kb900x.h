@@ -71,4 +71,14 @@ typedef struct __attribute__((packed, aligned(4))) {
  */
 int kb900x_get_hw_rtssm_log(const kb900x_config config, kb900x_rtssm_all_logs_t *log);
 
+/**
+ * \brief Get the vendor ID of the retimer.
+ *
+ * \param[in] config the driver configuration
+ * \param[out] vendor_id pointer to an uint32_t to store the vendor ID
+ *
+ * \return 0 if no error, else the error code
+ */
+int kb900x_get_vendor_id(const kb900x_config config, uint32_t *vendor_id);
+
 #endif // __KB900X_H__

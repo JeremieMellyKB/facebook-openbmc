@@ -3,6 +3,15 @@
 #include "kb900x_comm.h"
 #include "kb900x_utils.h"
 
+int kb900x_get_vendor_id(const kb900x_config config, uint32_t *vendor_id) {
+  // Read the vendor ID
+  int ret = kb900x_read_smbus_command(config, KB900X_OFFSET_VENDOR_ID, vendor_id);
+  CHECK_SUCCESS_MSG(ret,
+                    "Unable to get the vendor ID, err code : %d - %s", errno,
+                    strerror(errno));
+  return KB900X_E_OK;
+}
+
 int kb900x_get_hw_rtssm_log(const kb900x_config config, kb900x_rtssm_all_logs_t *log) {
   int ret = 0;
   uint32_t operation_status = 0;
