@@ -7,6 +7,7 @@
 #define __KB900X_H__
 
 #include <stdint.h>
+#include "kb900x_comm.h"
 
 typedef enum {
   KB900X_FEATURE_REQ_STATUS_NOT_SET = 0, /* status_not set */
@@ -68,6 +69,6 @@ typedef struct __attribute__((packed, aligned(4))) {
  *
  * \return 0 if no error, else the error code
  */
-int kb900x_get_hw_rtssm_log(int handle, kb900x_rtssm_all_logs_t *log);
+int kb900x_get_hw_rtssm_log(const kb900x_config config, kb900x_rtssm_all_logs_t *log);
 
 #endif // __KB900X_H__

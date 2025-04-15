@@ -5,22 +5,9 @@
 #include <linux/i2c.h>
 #include <sys/ioctl.h>
 
-// Constants
-// Command code as per supplemental spec Table 6-3.
-// (Slave SMBus Command Code Fields)
-#define CCODE_START_READ_FUNC0 (0x82)
-#define CCODE_END_READ_FUNC0 (0x81)
-
-#define CCODE_START_END_WRITE_FUNC1 (0x87)
-
-#define CCODE_START_READ_FUNC2 (0x8A)
-#define CCODE_END_READ_FUNC2 (0x89)
-
-#define CCODE_START_END_WRITE_FUNC3 (0x8F)
-
 uint8_t kb900x_i2c_slave_addr = 0x00;
 
-static uint8_t calculate_pec(uint8_t *data, size_t len) {
+static uint8_t cal_crc8(uint8_t *data, size_t len) {
   uint8_t crc = 0x00;
   for (size_t i = 0; i < len; i++) {
     crc ^= data[i];
@@ -112,7 +99,7 @@ int kb900x_i2c_select_slave_addr(int handle, uint8_t slave_address) {
   return KB900X_E_OK;
 }
 
-int kb900x_write(int handle, const uint8_t *address, const uint8_t address_size,
+int __attribute__((weak)) kb900x_write(const kb900x_config config, const uint8_t *address, const uint8_t address_size,
                  const uint8_t *payload, const uint8_t payload_size) {
   // We only use 4 bytes addresses with vendor defined SMBus write register
   if (address_size != 4) {
@@ -149,20 +136,20 @@ int kb900x_write(int handle, const uint8_t *address, const uint8_t address_size,
     data_to_sign[i + 2] = i2c_data.block[i + 1];
   }
   i2c_data.block[bytecnt_size + address_size + payload_size + 1] =
-      calculate_pec(data_to_sign, address_size + payload_size + 3);
+      cal_crc8(data_to_sign, address_size + payload_size + 3);
 
   blk.read_write = I2C_SMBUS_WRITE;
   blk.command = CCODE_START_END_WRITE_FUNC3;
   blk.size = I2C_SMBUS_I2C_BLOCK_DATA;
   blk.data = &i2c_data;
   // FIXME Is it possible to use ioctl directly or should we use the obmc-i2c driver?
-  int ret = ioctl(handle, I2C_SMBUS, &blk);
+  int ret = ioctl(config.handle, I2C_SMBUS, &blk);
   CHECK_IOCTL_MSG(ret, "Unable to write I2C data, err code : %d - %s", errno,
                   strerror(errno));
   return KB900X_E_OK;
 }
 
-int kb900x_read(int handle, const uint8_t *address, const uint8_t address_size,
+int __attribute__((weak)) kb900x_read(const kb900x_config config, const uint8_t *address, const uint8_t address_size,
                 uint8_t *result, uint8_t result_size) {
   struct i2c_smbus_ioctl_data blk;
   union i2c_smbus_data i2c_data;
@@ -202,14 +189,14 @@ int kb900x_read(int handle, const uint8_t *address, const uint8_t address_size,
       data_to_sign[i + 2] = i2c_data.block[i + 1];
     }
     i2c_data.block[bytecnt_size + address_size + 1] =
-        calculate_pec(data_to_sign, address_size + 3);
+        cal_crc8(data_to_sign, address_size + 3);
 
     blk.read_write = I2C_SMBUS_WRITE;
     blk.command = command_code_start;
     blk.size = I2C_SMBUS_I2C_BLOCK_DATA;
     blk.data = &i2c_data;
     // Send write
-    ret = ioctl(handle, I2C_SMBUS, &blk);
+    ret = ioctl(config.handle, I2C_SMBUS, &blk);
     if (ret < 0) {
       continue;
     }
@@ -222,7 +209,7 @@ int kb900x_read(int handle, const uint8_t *address, const uint8_t address_size,
     i2c_data.block[0] = nb_data_to_read;
     blk.data = &i2c_data;
     // Send read
-    ret = ioctl(handle, I2C_SMBUS, &blk);
+    ret = ioctl(config.handle, I2C_SMBUS, &blk);
     if (ret < 0) {
       continue;
     }
@@ -242,12 +229,12 @@ int kb900x_read(int handle, const uint8_t *address, const uint8_t address_size,
     for (int i = 0; i < bytecnt; i++) {
       data_to_check[i + 4] = i2c_data.block[data_offset + i];
     }
-    if (pec != calculate_pec(data_to_check, address_size + result_size + 4)) {
+    if (pec != cal_crc8(data_to_check, address_size + result_size + 4)) {
       for (int i = 0; i < address_size + result_size + 4; i++) {
         KANDOU_DEBUG("data_to_check[%d] = %02x", i, data_to_check[i]);
       }
       KANDOU_ERR("PEC mismatch - received %02x expected %02x", pec,
-                 calculate_pec(data_to_check, address_size + result_size + 4));
+                 cal_crc8(data_to_check, address_size + result_size + 4));
       continue;
     }
     break;

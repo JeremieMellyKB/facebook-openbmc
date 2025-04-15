@@ -11,9 +11,7 @@ int kb900x_i2c_init(int i2c_bus, uint8_t slave_address) {
 #endif
 }
 
-int kb900x_write_register(int handle, const uint32_t address,
-                          const uint32_t payload) {
-  int ret = 0;
+int kb900x_write_register(const kb900x_config config, const uint32_t address, const uint32_t payload) {
   // Convert uint32 address into an array of 4 bytes big-endian
   uint8_t address_array[KB900X_REGLI_REGISTER_ADDR_SIZE] = {0x00};
   const uint8_t mask = 0xFF;
@@ -30,15 +28,14 @@ int kb900x_write_register(int handle, const uint32_t address,
   payload_array[2] = (payload >> 8) & mask;  // NOLINT
   payload_array[3] = payload & mask;         // NOLINT
 
-  ret = kb900x_write(handle, address_array, KB900X_REGLI_REGISTER_ADDR_SIZE,
+  int ret = kb900x_write(config, address_array, KB900X_REGLI_REGISTER_ADDR_SIZE,
                      payload_array, KB900X_REGLI_REGISTER_SIZE);
   CHECK_SUCCESS_MSG(ret, "Unable to write register, err code : %d - %s", errno,
                     strerror(errno));
   return KB900X_E_OK;
 }
 
-int kb900x_read_register(int handle, const uint32_t address, uint32_t *result) {
-  int ret = 0;
+int kb900x_read_register(const kb900x_config config, const uint32_t address, uint32_t *result) {
   const size_t buffer_size = KB900X_REGLI_REGISTER_SIZE;
   uint8_t rx_buf[buffer_size];
   for (size_t i = 0; i < buffer_size; i++) {
@@ -52,7 +49,7 @@ int kb900x_read_register(int handle, const uint32_t address, uint32_t *result) {
                                     BITS_IN_BYTE)) &
                        mask;
   }
-  ret = kb900x_read(handle, address_array, KB900X_REGLI_REGISTER_ADDR_SIZE,
+  int ret = kb900x_read(config, address_array, KB900X_REGLI_REGISTER_ADDR_SIZE,
                     rx_buf, KB900X_REGLI_REGISTER_SIZE);
   CHECK_SUCCESS_MSG(ret, "Unable to read register, err code : %d - %s", errno,
                     strerror(errno));
@@ -61,8 +58,7 @@ int kb900x_read_register(int handle, const uint32_t address, uint32_t *result) {
   return KB900X_E_OK;
 }
 
-int kb900x_read_smbus_command(int handle, uint16_t offsets, uint32_t *result) {
-  int ret = 0;
+int kb900x_read_smbus_command(const kb900x_config config, uint16_t offsets, uint32_t *result) {
   const size_t buffer_size = KB900X_SMBUS_COMMAND_SIZE;
   uint8_t rx_buf[buffer_size];
   for (size_t i = 0; i < buffer_size; i++) {
@@ -76,7 +72,7 @@ int kb900x_read_smbus_command(int handle, uint16_t offsets, uint32_t *result) {
         (offsets >> ((KB900X_SMBUS_COMMAND_ADDR_SIZE - 1 - i) * BITS_IN_BYTE)) &
         mask;
   }
-  ret = kb900x_read(handle, address_array, KB900X_SMBUS_COMMAND_ADDR_SIZE,
+  int ret = kb900x_read(config, address_array, KB900X_SMBUS_COMMAND_ADDR_SIZE,
                     rx_buf, KB900X_SMBUS_COMMAND_SIZE);
   CHECK_SUCCESS_MSG(ret, "Unable to read SMBus command, err code : %d - %s",
                     errno, strerror(errno));
