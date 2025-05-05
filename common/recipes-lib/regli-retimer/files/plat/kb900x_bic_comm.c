@@ -120,6 +120,24 @@ int kb900x_read(const kb900x_config config, const uint8_t *address, const uint8_
   data_to_sign[0] = config.retimer_addr << 1; // Write
   memcpy(&(data_to_sign[1]), &(tbuf[3]), smbus_tx_length - 1);
   tbuf[smbus_tx_length + 2] = cal_crc8(data_to_sign, smbus_tx_length);
+  // FIXME remove debug logs
+  kandou_log_set_quiet(false);
+  kandou_log_set_level(LOG_DEBUG);
+
+  for(size_t i = 0; i < smbus_tx_length; i++)
+  {
+    KANDOU_DEBUG("data_to_sign[%d] = 0x%02x", i, data_to_sign[i]);
+  }
+  KANDOU_DEBUG("PEC: 0x%02x", tbuf[smbus_tx_length + 2]);
+
+  KANDOU_DEBUG("Tbuf:");
+  for (size_t i = 0; i < smbus_tx_length + 3; i++)
+  {
+    KANDOU_DEBUG("tbuf[%d] = 0x%02x", i, tbuf[i]);
+  }
+
+  kandou_log_set_quiet(true);
+
   tlen = smbus_tx_length + 3;  // bus_id + retimer_addr + tx_len + I2C data
   ret = bic_data_send(config.slot_id, NETFN_APP_REQ, CMD_APP_MASTER_WRITE_READ, tbuf, tlen, rbuf, &rlen, config.intf);
   if (ret != 0)
