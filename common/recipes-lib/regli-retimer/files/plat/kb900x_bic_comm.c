@@ -55,7 +55,7 @@ int kb900x_write(const kb900x_config config, const uint8_t *address, const uint8
   
     const uint8_t smbus_tx_length = payload_size + address_size + 3; // Write length = ByteCount + command code + payload size + address size + PEC
     tbuf[0] = (config.bus_id << 1) + 1;
-    tbuf[1] = config.retimer_addr;
+    tbuf[1] = config.retimer_addr << 1;
     tbuf[2] = 0x00; // Read count = 0
     tbuf[3] = CCODE_START_END_WRITE_FUNC3;
     tbuf[4] = smbus_tx_length;
@@ -103,7 +103,7 @@ int kb900x_read(const kb900x_config config, const uint8_t *address, const uint8_
   // First we need to write the address to the retimer
   const uint8_t smbus_tx_length = address_size + 3; // Write length = Command Code + ByteCount + address size + PEC
   tbuf[0] = (config.bus_id << 1) + 1;
-  tbuf[1] = config.retimer_addr;
+  tbuf[1] = config.retimer_addr << 1; // Write
   tbuf[2] = 0x00;
   tbuf[3] = command_code_start;
   tbuf[4] = address_size;
@@ -151,8 +151,8 @@ int kb900x_read(const kb900x_config config, const uint8_t *address, const uint8_
   rlen = 0;
   
   tbuf[0] = (config.bus_id << 1) + 1;
-  tbuf[1] = config.retimer_addr;
-  tbuf[2] = KB900X_REGLI_REGISTER_SIZE; // A read operation will always return 4 bytes
+  tbuf[1] = config.retimer_addr << 1;
+  tbuf[2] = address_size + 6; // A read operation will always return 4 bytes data, the address, the bytecount and the PEC
   tbuf[3] = command_code_stop;
   tlen = 4;
   ret = bic_data_send(config.slot_id, NETFN_APP_REQ, CMD_APP_MASTER_WRITE_READ, tbuf, tlen, rbuf, &rlen, config.intf);
