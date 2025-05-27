@@ -16,18 +16,9 @@
 
 #include "kb900x_eeprom.h"
 #include "kb900x_i2c_master.h"
+#include "kb900x_utils.h"
 #include <string.h>
 #include <time.h>
-
-void wait_ms(int milliseconds)
-{
-    clock_t start_time = clock();
-    // Convert milliseconds to clock ticks
-    const int nb_ms_in_sec = 1000;
-    clock_t wait_time = (milliseconds * CLOCKS_PER_SEC) / nb_ms_in_sec;
-    while (clock() < start_time + wait_time)
-        ; // Busy wait
-}
 
 // FIXME too coupled with firmware
 int eeprom_write(const kb900x_config_t *config, const uint16_t addr, const uint8_t *payload,

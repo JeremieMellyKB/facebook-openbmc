@@ -37,6 +37,7 @@
 #define KB900X_DCCM_END_ADDR_B0_B1 (0x80010000)
 #define KB900X_SDS_MAGIC_HEADER (0x4B425353) // 'KBSS' big-endian
 #define KB900X_SW_RTSSM_SIZE (341)
+#define KB900X_FEAT_REQ_RETRIES (10)
 
 // HW RTSSM delta conversion constants
 #define KB900X_DELTA_OVERFLOW (0xFFFFFFFF)

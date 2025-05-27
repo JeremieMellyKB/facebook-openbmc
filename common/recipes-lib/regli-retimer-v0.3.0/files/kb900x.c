@@ -767,6 +767,9 @@ int kb900x_get_link_status(const kb900x_config_t *config, int link_id,
     size_t timeout = KB900X_LINK_STATUS_TIMEOUT;
     bool ready = false;
     while (timeout > 0 && !ready) {
+        // Wait for 2 ms before reading the operation status again.
+        wait_ms(2);
+
         ret =
             io.read(config, KB900X_ADDR_LINK_STATUS_READY, KB900X_SMBUS_REGISTER_ADDR_SIZE, &value);
         CHECK_SUCCESS_MSG(ret, "Unable to read link status readiness, err code : %d - %s", errno,
@@ -1018,8 +1021,11 @@ int kb900x_get_tx_presets(const kb900x_config_t *config, kb900x_all_presets_t *p
                       strerror(errno));
 
     // Read operation status
-    uint8_t timeout = 0;
-    while (operation_status != KB900X_FEAT_REQ_STATUS_SUCCESS && timeout < 100) {
+    uint8_t retry = 0;
+    while (operation_status != KB900X_FEAT_REQ_STATUS_SUCCESS && retry < KB900X_FEAT_REQ_RETRIES) {
+        // Wait for 2 ms before reading the operation status again.
+        wait_ms(2);
+
         ret = io.read(config, KB900X_ADDR_PRESET_STATUS, KB900X_SMBUS_REGISTER_ADDR_SIZE,
                       &operation_status);
         CHECK_SUCCESS_MSG(ret, "Unable to get the tx presets (request status), err code : %d - %s",
@@ -1030,7 +1036,7 @@ int kb900x_get_tx_presets(const kb900x_config_t *config, kb900x_all_presets_t *p
             break;
         }
 
-        timeout++;
+        retry++;
     }
 
     // Check the operation status
@@ -1119,8 +1125,11 @@ int kb900x_get_hw_rtssm_log(const kb900x_config_t *config, kb900x_hw_rtssm_logs_
                       strerror(errno));
 
     // Read operation status
-    uint8_t timeout = 0;
-    while (operation_status != KB900X_FEAT_REQ_STATUS_SUCCESS && timeout < 100) {
+    uint8_t retry = 0;
+    while (operation_status != KB900X_FEAT_REQ_STATUS_SUCCESS && retry < KB900X_FEAT_REQ_RETRIES) {
+        // Wait for 2 ms before reading the operation status again.
+        wait_ms(2);
+
         ret = io.read(config, KB900X_ADDR_RTSSM_STATUS, KB900X_SMBUS_REGISTER_ADDR_SIZE,
                       &operation_status);
         CHECK_SUCCESS_MSG(ret, "Unable to get the tx presets (request status), err code : %d - %s",
@@ -1131,7 +1140,7 @@ int kb900x_get_hw_rtssm_log(const kb900x_config_t *config, kb900x_hw_rtssm_logs_
             break;
         }
 
-        timeout++;
+        retry++;
     }
 
     // Check the operation status

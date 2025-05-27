@@ -17,13 +17,12 @@
 #ifndef _KB_UTILS_H
 #define _KB_UTILS_H
 
+#include "kb900x_log.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-
-#include <kb900x_log.h>
 
 /**
  * \brief This struct is used to store the I2C and IPMB configuration for
@@ -114,6 +113,13 @@ typedef struct {
             return (rc);                                                                           \
         }                                                                                          \
     }
+
+/**
+ * \brief Wait for a specified number of milliseconds.
+ *
+ * \param milliseconds The number of milliseconds to wait.
+ */
+void wait_ms(int milliseconds);
 
 /**
  * \brief Calculate the CRC8 checksum of a given data buffer.
