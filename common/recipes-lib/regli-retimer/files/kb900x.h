@@ -153,9 +153,7 @@ typedef enum {
 typedef enum {
     KB900X_COMM_SMBUS = 0,
     KB900X_COMM_TWI = 1,
-#ifdef BIC_COMMUNICATION
     KB900X_COMM_BIC = 2,
-#endif
 } kb900x_communication_mode_t;
 
 // Boot Status

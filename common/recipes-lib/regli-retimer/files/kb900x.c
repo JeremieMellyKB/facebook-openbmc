@@ -469,6 +469,11 @@ int kb900x_switch_communication_mode(const kb900x_config_t *config,
         CHECK_SUCCESS_MSG(ret, "Error: Unable to set library communication mode");
         return KB900X_E_OK;
     }
+#else
+    if (mode == KB900X_COMM_BIC) {
+        KANDOU_ERR("Mode not supported: %d", mode);
+        return -EINVAL;
+    }
 #endif
 
     if (mode < 0 || mode > 1) {
