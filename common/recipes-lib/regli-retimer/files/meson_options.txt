@@ -1,0 +1,1 @@
+option('bic_communication', type: 'boolean', value: false, description: 'Enable BIC communication.')
