@@ -43,7 +43,6 @@ endif
 
 install_headers(
     headers,
-    subdir: 'openbmc'
 )
 
 srcs = files(
