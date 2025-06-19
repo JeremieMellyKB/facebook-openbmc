@@ -105,6 +105,8 @@ const char *kb900x_strerror(int rc)
             return "Unknown or unsupported KB900x revision ID";
         case KB900X_E_OP_NOT_SUPPORTED_BY_FW:
             return "Operation not supported by current FW version";
+        case KB900X_E_EEPROM_FORMAT_ERROR:
+            return "EEPROM format error";
         default:
             return strerror(rc);
     }

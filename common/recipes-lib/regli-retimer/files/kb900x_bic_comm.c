@@ -42,57 +42,74 @@ static int get_smbus_command_code(uint8_t address_size, uint8_t *command_code_st
     return KB900X_E_OK;
 }
 
-int bic_write(const kb900x_config_t *config, const uint32_t address, const uint8_t address_size,
-              const uint32_t value)
+int kb900x_bic_write(const kb900x_config_t *config, const uint32_t address,
+                     const uint8_t address_size, const uint32_t value)
 {
     // We only use 4 bytes addresses with vendor defined SMBus write register
     if (address_size != 4) {
         KANDOU_ERR("Address size must be 4 bytes");
         return -EINVAL;
     }
-    uint8_t tbuf[64] = {0x00};
-    uint8_t rbuf[64] = {0x00};
-    uint8_t tlen = 0;
-    uint8_t rlen = 0;
+    uint8_t nb_retry = 5;
+    while (nb_retry > 0) {
+        uint8_t tbuf[64] = {0x00};
+        uint8_t rbuf[64] = {0x00};
+        uint8_t tlen = 0;
+        uint8_t rlen = 0;
 
-    const uint8_t payload_size = 4;
-    const uint8_t smbus_tx_length =
-        4 + address_size +
-        3; // Write length = ByteCount + command code + payload size + address size + PEC
-    tbuf[0] = (config->bus_id << 1) + 1;
-    tbuf[1] = config->retimer_addr << 1;
-    tbuf[2] = 0x00; // Read count = 0
-    tbuf[3] = CCODE_START_END_WRITE_FUNC3;
-    tbuf[4] = smbus_tx_length;
+        const uint8_t payload_size = 4;
+        const uint8_t smbus_tx_length =
+            payload_size + address_size +
+            3; // Write length = ByteCount + command code + payload size + address size + PEC
+        tbuf[0] = (config->bus_id << 1) + 1;
+        tbuf[1] = config->retimer_addr << 1;
+        tbuf[2] = 0x00; // Read count = 0
+        tbuf[3] = CCODE_START_END_WRITE_FUNC3;
+        tbuf[4] = address_size + payload_size; // Address + Data
 
-    // Copy address to the beginning of the buffer
-    for (size_t i = 0; i < address_size; i++) {
-        // As SMBus expect address in little endian
-        // We reverse the address to match the expected format
-        tbuf[i + 5] = address >> (i * BITS_IN_BYTE) & 0xFF;
+        // Copy address to the beginning of the buffer
+        for (size_t i = 0; i < address_size; i++) {
+            // As SMBus expect address in little endian
+            // We reverse the address to match the expected format
+            tbuf[i + 5] = address >> (i * BITS_IN_BYTE) & 0xFF;
+        }
+        // Copy the payload after the address
+        for (size_t i = 0; i < payload_size; i++) {
+            // As SMBus expect payload in little endian
+            // We reverse the payload to match the expected format
+            tbuf[i + 5 + address_size] = value >> (i * BITS_IN_BYTE) & 0xFF;
+        }
+
+        // Add the PEC
+        uint8_t data_to_sign[smbus_tx_length];
+        data_to_sign[0] = config->retimer_addr << 1; // Write
+        memcpy(&(data_to_sign[1]), &(tbuf[3]), smbus_tx_length - 1);
+        tbuf[smbus_tx_length + 2] = cal_crc8(data_to_sign, smbus_tx_length);
+        tlen = smbus_tx_length + 3; // bus_id + retimer_addr + tx_len + I2C data
+        int ret = bic_data_send(config->slot_id, NETFN_APP_REQ, CMD_APP_MASTER_WRITE_READ, tbuf,
+                                tlen, rbuf, &rlen, config->intf);
+        if (ret != 0) {
+            KANDOU_ERR("bic_data_wrapper failed with error code: %d", ret);
+            nb_retry--;
+            continue;
+        }
+        // NB: Sometimes if the BIC is busy a write can be ignored.
+        // As the bic_data_send function doesn't always returns an error if a write is ignored
+        // the only way to know if a write has been ignored is to read the register written to
+        // ensure the write was successful NB: Doesn't work for FIFO registers as they're reset to
+        // 0x00 once the data written has been pushed to the FIFO
+        break;
     }
-    // Copy the payload after the address
-    for (size_t i = 0; i < payload_size; i++) {
-        // As SMBus expect payload in little endian
-        // We reverse the payload to match the expected format
-        tbuf[i + 5 + address_size] = value >> (i * BITS_IN_BYTE) & 0xFF;
+    if (nb_retry <= 0) {
+        KANDOU_ERR("Failed to communicate after 5 attempts");
+        return -KB900X_E_ERR;
     }
-    // Add the PEC
-    uint8_t data_to_sign[smbus_tx_length];
-    data_to_sign[0] = config->retimer_addr << 1; // Write
-    memcpy(&(data_to_sign[1]), &(tbuf[3]), smbus_tx_length - 1);
-    tbuf[smbus_tx_length + 2] = cal_crc8(data_to_sign, smbus_tx_length);
-    tlen = smbus_tx_length + 3; // bus_id + retimer_addr + tx_len + I2C data
-    int ret = bic_data_send(config->slot_id, NETFN_APP_REQ, CMD_APP_MASTER_WRITE_READ, tbuf, tlen,
-                            rbuf, &rlen, config->intf);
-    if (ret != 0) {
-        KANDOU_ERR("bic_data_wrapper failed with error code: %d", ret);
-    }
-    return ret;
+
+    return KB900X_E_OK;
 }
 
-int bic_read(const kb900x_config_t *config, const uint32_t address, const uint8_t address_size,
-             uint32_t *value)
+int kb900x_bic_read(const kb900x_config_t *config, const uint32_t address,
+                    const uint8_t address_size, uint32_t *value)
 {
     uint8_t nb_retry = 5;
     while (nb_retry > 0) {
@@ -158,7 +175,7 @@ int bic_read(const kb900x_config_t *config, const uint32_t address, const uint8_
             // Copy the result to the result buffer
             const uint8_t bytecnt = rbuf[0];
             if (bytecnt < 6) {
-                KANDOU_WARN(
+                KANDOU_DEBUG(
                     "Invalid number of bytes received (bytecount): %d with command : 0x%08x",
                     bytecnt, address);
                 nb_retry--;

@@ -28,8 +28,8 @@
  *
  * \return the result code
  */
-int bic_write(const kb900x_config_t *config, const uint32_t address, const uint8_t address_size,
-              const uint32_t value);
+int kb900x_bic_write(const kb900x_config_t *config, const uint32_t address,
+                     const uint8_t address_size, const uint32_t value);
 
 /** \brief Read an SMBus block through BIC.
  *
@@ -40,7 +40,7 @@ int bic_write(const kb900x_config_t *config, const uint32_t address, const uint8
  *
  * \return the result code
  */
-int bic_read(const kb900x_config_t *config, const uint32_t address, const uint8_t address_size,
-             uint32_t *value);
+int kb900x_bic_read(const kb900x_config_t *config, const uint32_t address,
+                    const uint8_t address_size, uint32_t *value);
 
 #endif // _KB_BIC_COMM_H

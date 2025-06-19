@@ -17,18 +17,18 @@
 #include "kb900x_i2c_comm.h"
 #include "kb900x_utils.h"
 
-uint8_t i2c_slave_addr = 0x00;
+uint8_t kb900x_i2c_slave_addr = 0x00;
 
-int i2c_open(int i2c_id)
+int kb900x_i2c_open(int i2c_id)
 {
     int handle = 0;
-    char filename[FILENAME_MAX_LENGTH];
+    char filename[KB900X_FILENAME_MAX_LENGTH];
     // Try to open /dev/i2c/{i2c_id}
-    snprintf(filename, FILENAME_MAX_LENGTH, "/dev/i2c/%d", i2c_id); // NOLINT
+    snprintf(filename, KB900X_FILENAME_MAX_LENGTH, "/dev/i2c/%d", i2c_id); // NOLINT
     handle = open(filename, O_RDWR);
     if (handle < 0 && (errno == ENOENT)) {
         // Try to open /dev/i2c-{i2c_id}
-        snprintf(filename, FILENAME_MAX_LENGTH, "/dev/i2c-%d", i2c_id); // NOLINT
+        snprintf(filename, KB900X_FILENAME_MAX_LENGTH, "/dev/i2c-%d", i2c_id); // NOLINT
         handle = open(filename, O_RDWR);
     }
     // If the connection failed
@@ -52,22 +52,22 @@ int i2c_open(int i2c_id)
     return handle;
 }
 
-void i2c_close(int handle)
+void kb900x_i2c_close(int handle)
 {
     close(handle);
 }
 
-int i2c_select_slave_addr(int handle, uint8_t slave_addr)
+int kb900x_i2c_select_slave_addr(int handle, uint8_t slave_addr)
 {
-    i2c_slave_addr = slave_addr;
+    kb900x_i2c_slave_addr = slave_addr;
     int ret = ioctl(handle, I2C_SLAVE, slave_addr);
     CHECK_IOCTL_MSG(ret, "Unable to select I2C slave address %d, err code: %d - %s", slave_addr,
                     errno, strerror(errno));
     return KB900X_E_OK;
 }
 
-int i2c_write(const kb900x_config_t *config, const uint32_t address, const uint8_t address_size,
-              const uint32_t value)
+int kb900x_i2c_write(const kb900x_config_t *config, const uint32_t address,
+                     const uint8_t address_size, const uint32_t value)
 {
     // We only use 4 bytes addresses with TWI interface
     if (address_size != 4) {
@@ -93,7 +93,7 @@ int i2c_write(const kb900x_config_t *config, const uint32_t address, const uint8
         buffer[i + address_size] = value >> ((payload_size - 1 - i) * BITS_IN_BYTE) & 0xFF;
     }
 
-    messages[0].addr = i2c_slave_addr;
+    messages[0].addr = kb900x_i2c_slave_addr;
     messages[0].flags = 0; // 0 means write
     messages[0].len = payload_size + address_size;
     messages[0].buf = buffer;
@@ -106,8 +106,8 @@ int i2c_write(const kb900x_config_t *config, const uint32_t address, const uint8
     return KB900X_E_OK;
 }
 
-int i2c_read(const kb900x_config_t *config, const uint32_t address, const uint8_t address_size,
-             uint32_t *value)
+int kb900x_i2c_read(const kb900x_config_t *config, const uint32_t address,
+                    const uint8_t address_size, uint32_t *value)
 {
     // We only use 4 bytes addresses with TWI interface
     if (address_size != 4) {
@@ -128,7 +128,7 @@ int i2c_read(const kb900x_config_t *config, const uint32_t address, const uint8_
     }
 
     // First message to write the 4-byte address
-    messages[0].addr = i2c_slave_addr;
+    messages[0].addr = kb900x_i2c_slave_addr;
     messages[0].flags = 0; // 0 means write (for sending the address)
     messages[0].len = address_size;
     messages[0].buf = addr_buf;
@@ -136,7 +136,7 @@ int i2c_read(const kb900x_config_t *config, const uint32_t address, const uint8_
     // Second message to read the data from the device
     const uint8_t result_size = 4;
     uint8_t rx_buf[result_size];
-    messages[1].addr = i2c_slave_addr;
+    messages[1].addr = kb900x_i2c_slave_addr;
     messages[1].flags = I2C_M_RD; // I2C_M_RD means read
     messages[1].len = result_size;
     messages[1].buf = rx_buf;

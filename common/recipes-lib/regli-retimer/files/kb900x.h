@@ -626,7 +626,7 @@ int kb900x_get_temperature(const kb900x_config_t *config, float *temperature);
  *
  * \return 0 if no error, else the error code
  */
-int kb900x_get_vendor_id(const kb900x_config_t *config, int *vendor_id);
+int kb900x_get_vendor_id(const kb900x_config_t *config, uint32_t *vendor_id);
 
 /** \brief Read the retimer firmware version.
  *
@@ -716,13 +716,27 @@ int kb900x_read_register(const kb900x_config_t *config, const uint32_t address, 
  * \param[in] config the config context, cannot be NULL
  * \param[in] buffer a buffer containing a complete firmware image, cannot be NULL
  * \param[in] buffer_size the size of `buffer`, should not be larger than `config->eeprom_size`
- * \param[in] eeprom_config the EEPROM config structure, cannot be NULL, see `eeprom_config_t` for
- * details
+ * \param[in] eeprom_config the EEPROM config structure, cannot be NULL, see
+ * `kb900x_eeprom_config_t` for details
  *
  * \return 0 if no error, else the error code
  */
 int kb900x_flash_firmware(const kb900x_config_t *config, const uint8_t *buffer,
-                          const uint32_t buffer_size, const eeprom_config_t *eeprom_config);
+                          const uint32_t buffer_size, const kb900x_eeprom_config_t *eeprom_config);
+
+/** \brief Configure the firmware image in the EEPROM.
+ *
+ * \param[in] config the config context, cannot be NULL
+ * \param[in] eeprom_config the EEPROM config structure, cannot be NULL, see `eeprom_config_t` for
+ * details
+ * \param[in] config_payload the configuration payload to write to the EEPROM, cannot be NULL
+ * \param[in] config_payload_size the size of `config_payload`
+ *
+ * \return 0 if no error, else the error code
+ */
+int kb900x_configure_firmware(const kb900x_config_t *config,
+                              const kb900x_eeprom_config_t *eeprom_config,
+                              const uint8_t *config_payload, const size_t config_payload_size);
 
 /** \brief Compare the firmware image stored in the EEPROM, against a provided buffer.
  *
@@ -733,14 +747,14 @@ int kb900x_flash_firmware(const kb900x_config_t *config, const uint8_t *buffer,
  * \param[in] config the config context, cannot be NULL
  * \param[in] buffer the buffer containing the expected firmware, cannot be NULL
  * \param[in] buffer_size the size of `buffer`
- * \param[in] eeprom_config the EEPROM config structure, cannot be NULL, see `eeprom_config_t` for
- * details, cannot be NULL
+ * \param[in] eeprom_config the EEPROM config structure, cannot be NULL, see
+ * `kb900x_eeprom_config_t` for details, cannot be NULL
  *
  * \return 0 if no error and the EEPROM contents match buffer, -EILSEQ if the bytes don't match,
  * otherwise some other error code
  */
 int kb900x_check_firmware(const kb900x_config_t *config, const uint8_t *buffer,
-                          const uint32_t buffer_size, const eeprom_config_t *eeprom_config);
+                          const uint32_t buffer_size, const kb900x_eeprom_config_t *eeprom_config);
 
 /** \brief Reset KB900x and reboot the firmware.
  *
@@ -780,7 +794,7 @@ int kb900x_get_revid(const kb900x_config_t *config, uint32_t *revid);
  * \param[out] records a non-NULL pointer where to write the dump records,
  *                     should point to a buffer large enough to hold all the
  *                     records. The number of records that will be written can
- *                     be found at runtime using DUMP_NUM_REG. If you cannot
+ *                     be found at runtime using KB900X_DUMP_NUM_REG. If you cannot
  *                     allocate enough memory for a complete register dump, you
  *                     can use kb900x_dump_phy_rpcs_registers_with_offset(), to perform
  *                     a partial dump.
@@ -802,10 +816,10 @@ int kb900x_dump_phy_rpcs_registers(const kb900x_config_t *config,
  *                     should point to a buffer large enough to hold the number
  *                     of records specified in dump_num
  * \param[in] skip_num the number of registers to skip before starting the dump, should not
- *                     be > DUMP_NUM_REG (the total number of registers that can be dumped).
+ *                     be > KB900X_DUMP_NUM_REG (the total number of registers that can be dumped).
  * \param[in] dump_num the number of registers to dump, note that this number MUST be <= than
- *                     DUMP_NUM_REG (the total number of registers that can be dumped) - skip_num.
- *                     Otherwise, this function will return -EINVAL.
+ *                     KB900X_DUMP_NUM_REG (the total number of registers that can be dumped) -
+ * skip_num. Otherwise, this function will return -EINVAL.
  *
  * \return 0 if no error, else the error code
  */

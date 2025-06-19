@@ -67,6 +67,7 @@ typedef struct {
 #define KB900X_E_UNKNOWN_REVID (1005)          /* Unknown chip rev id */
 #define KB900X_E_FEATURE_REQ_FAILED (1006)     /* Feature request failed */
 #define KB900X_E_OP_NOT_SUPPORTED_BY_FW (1007) /* Current FW does not support this operation. */
+#define KB900X_E_EEPROM_FORMAT_ERROR (1008)    /* EEPROM format error */
 
 // GCC or Clang
 #ifdef __GNUC__

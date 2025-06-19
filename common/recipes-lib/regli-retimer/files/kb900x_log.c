@@ -28,17 +28,17 @@ static struct {
 } KandouLoggerState = {
     .fp = NULL, // Default to NULL for the file pointer
 #ifdef DEBUG
-    .level = LOG_DEBUG,
+    .level = KB900X_LOG_DEBUG,
 #else
-    .level = LOG_INFO,
+    .level = KB900X_LOG_INFO,
 #endif
     .quiet = 1 // Default quiet mode to on (1)
 };
 
-char *type[LOG_LEVEL_LENGTH] = {"DEBUG", "INFO", "WARN", "ERR", "FATAL"};
+char *type[KB900X_LOG_LEVEL_LENGTH] = {"DEBUG", "INFO", "WARN", "ERR", "FATAL"};
 
 #ifdef LOGGING_COLORS
-char *colors[LOG_LEVEL_LENGTH] = {
+char *colors[KB900X_LOG_LEVEL_LENGTH] = {
     "\x1b[36m", // Cyan
     "\x1b[32m", // Green
     "\x1b[33m", // Yellow

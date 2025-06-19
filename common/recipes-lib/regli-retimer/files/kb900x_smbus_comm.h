@@ -31,7 +31,7 @@
  *
  * \return 0: not supported, anything else: supported
  */
-int smbus_check_supported_func(int handle, unsigned long func);
+int kb900x_smbus_check_supported_func(int handle, unsigned long func);
 
 /** \brief enable/disable PEC verification
  *
@@ -40,7 +40,7 @@ int smbus_check_supported_func(int handle, unsigned long func);
  *
  * \return the result code
  */
-int smbus_pec(int handle, bool enabled);
+int kb900x_smbus_pec(int handle, bool enabled);
 
 /** \brief write an SMBus block
  *
@@ -53,8 +53,8 @@ int smbus_pec(int handle, bool enabled);
  *
  * \return the result code
  */
-int smbus_write_block(const kb900x_config_t *config, const uint32_t address,
-                      const uint8_t address_size, const uint32_t value);
+int kb900x_smbus_write_block(const kb900x_config_t *config, const uint32_t address,
+                             const uint8_t address_size, const uint32_t value);
 
 /** \brief write an SMBus block
  *
@@ -67,8 +67,8 @@ int smbus_write_block(const kb900x_config_t *config, const uint32_t address,
  *
  * \return the result code
  */
-int smbus_write_i2c(const kb900x_config_t *config, const uint32_t address,
-                    const uint8_t address_size, const uint32_t value);
+int kb900x_smbus_write_i2c(const kb900x_config_t *config, const uint32_t address,
+                           const uint8_t address_size, const uint32_t value);
 
 /** \brief write an SMBus read request and reads the response.
  *
@@ -81,8 +81,8 @@ int smbus_write_i2c(const kb900x_config_t *config, const uint32_t address,
  *
  * \return the result code
  */
-int smbus_read_block(const kb900x_config_t *config, const uint32_t address,
-                     const uint8_t address_size, uint32_t *value);
+int kb900x_smbus_read_block(const kb900x_config_t *config, const uint32_t address,
+                            const uint8_t address_size, uint32_t *value);
 
 /** \brief write an SMBus read request and reads the response.
  *
@@ -95,7 +95,7 @@ int smbus_read_block(const kb900x_config_t *config, const uint32_t address,
  *
  * \return the result code
  */
-int smbus_read_i2c(const kb900x_config_t *config, const uint32_t address,
-                   const uint8_t address_size, uint32_t *value);
+int kb900x_smbus_read_i2c(const kb900x_config_t *config, const uint32_t address,
+                          const uint8_t address_size, uint32_t *value);
 
 #endif // _KB_SMBUS_COMM_H

@@ -25,27 +25,27 @@
 #endif
 
 // Set I2C mode by default
-KB900X_IO io = {i2c_write, i2c_read};
+KB900X_IO io = {kb900x_i2c_write, kb900x_i2c_read};
 // Save the current comms mode
 kb900x_communication_mode_t current_mode = KB900X_COMM_TWI;
 // Register ranges to dump
-const kb900x_register_range_t reg_dump_ranges[DUMP_NUM_RANGES] = {
+const kb900x_register_range_t reg_dump_ranges[KB900X_DUMP_NUM_RANGES] = {
     // RPCS CORE
-    {.base_address = RPCS_CORE_BASE_ADDR, .num_registers = RPCS_CORE_NUM_REG},
+    {.base_address = KB900X_RPCS_CORE_BASE_ADDR, .num_registers = KB900X_RPCS_CORE_NUM_REG},
     // RPCS AON
-    {.base_address = RPCS_AON_BASE_ADDR, .num_registers = RPCS_AON_NUM_REG},
+    {.base_address = KB900X_RPCS_AON_BASE_ADDR, .num_registers = KB900X_RPCS_AON_NUM_REG},
     // PHC0
-    {.base_address = PHC0_BASE_ADDR, .num_registers = PHC0_NUM_REG},
+    {.base_address = KB900X_PHC0_BASE_ADDR, .num_registers = KB900X_PHC0_NUM_REG},
     // PHC1
-    {.base_address = PHC1_BASE_ADDR, .num_registers = PHC1_NUM_REG},
+    {.base_address = KB900X_PHC1_BASE_ADDR, .num_registers = KB900X_PHC1_NUM_REG},
     // PHC2
-    {.base_address = PHC2_BASE_ADDR, .num_registers = PHC2_NUM_REG},
+    {.base_address = KB900X_PHC2_BASE_ADDR, .num_registers = KB900X_PHC2_NUM_REG},
     // PHC3
-    {.base_address = PHC3_BASE_ADDR, .num_registers = PHC3_NUM_REG},
+    {.base_address = KB900X_PHC3_BASE_ADDR, .num_registers = KB900X_PHC3_NUM_REG},
     // PHT0
-    {.base_address = PHT0_BASE_ADDR, .num_registers = PHT0_NUM_REG},
+    {.base_address = KB900X_PHT0_BASE_ADDR, .num_registers = KB900X_PHT0_NUM_REG},
     // PHT2
-    {.base_address = PHT1_BASE_ADDR, .num_registers = PHT1_NUM_REG},
+    {.base_address = KB900X_PHT1_BASE_ADDR, .num_registers = KB900X_PHT1_NUM_REG},
 };
 
 const kb9003_mapping_t kb9003_mapping = {
@@ -344,14 +344,14 @@ int check_fw_version(kb900x_fw_version_t *version, kb900x_fw_version_t *min_vers
 int kb900x_open(kb900x_config_t *config)
 {
     // Open the I2C interface
-    config->handle = i2c_open(config->bus_id);
+    config->handle = kb900x_i2c_open(config->bus_id);
 
     // Set the slave address
-    int ret = i2c_select_slave_addr(config->handle, config->retimer_addr);
+    int ret = kb900x_i2c_select_slave_addr(config->handle, config->retimer_addr);
     CHECK_SUCCESS(ret);
 
     // Enable PEC
-    ret = smbus_pec(config->handle, true);
+    ret = kb900x_smbus_pec(config->handle, true);
     CHECK_SUCCESS(ret);
 
     return KB900X_E_OK;
@@ -359,46 +359,46 @@ int kb900x_open(kb900x_config_t *config)
 
 void kb900x_close(kb900x_config_t *config)
 {
-    i2c_close(config->handle);
+    kb900x_i2c_close(config->handle);
     config->handle = -1;
 }
 
 int kb900x_set_communication_mode(const kb900x_config_t *config, kb900x_communication_mode_t mode)
 {
     if (mode == KB900X_COMM_SMBUS) {
-        if (!smbus_check_supported_func(config->handle, I2C_FUNC_SMBUS_BLOCK_DATA)) {
+        if (!kb900x_smbus_check_supported_func(config->handle, I2C_FUNC_SMBUS_BLOCK_DATA)) {
             KANDOU_WARN("Unsupported operation: I2C_FUNC_SMBUS_BLOCK_DATA - Trying "
                         "I2C_FUNC_SMBUS_I2C_BLOCK");
-            if (!smbus_check_supported_func(config->handle, I2C_FUNC_SMBUS_I2C_BLOCK)) {
+            if (!kb900x_smbus_check_supported_func(config->handle, I2C_FUNC_SMBUS_I2C_BLOCK)) {
                 KANDOU_ERR("Unsupported operation: I2C_FUNC_SMBUS_I2C_BLOCK");
                 return -EOPNOTSUPP;
             }
             else {
-                io = (KB900X_IO){smbus_write_i2c, smbus_read_i2c};
+                io = (KB900X_IO){kb900x_smbus_write_i2c, kb900x_smbus_read_i2c};
                 current_mode = mode;
                 return init_fw_version(config);
             }
         }
         else {
-            io = (KB900X_IO){smbus_write_block, smbus_read_block};
+            io = (KB900X_IO){kb900x_smbus_write_block, kb900x_smbus_read_block};
             current_mode = mode;
             return init_fw_version(config);
         }
     }
     else if (mode == KB900X_COMM_TWI) {
-        if (!smbus_check_supported_func(config->handle, I2C_FUNC_I2C)) {
+        if (!kb900x_smbus_check_supported_func(config->handle, I2C_FUNC_I2C)) {
             KANDOU_ERR("Unsupported operation: I2C_FUNC_I2C");
             return -EOPNOTSUPP;
         }
         else {
-            io = (KB900X_IO){i2c_write, i2c_read};
+            io = (KB900X_IO){kb900x_i2c_write, kb900x_i2c_read};
             current_mode = mode;
             return KB900X_E_OK;
         }
     }
 #ifdef BIC_COMMUNICATION
     else if (mode == KB900X_COMM_BIC) {
-        io = (KB900X_IO){bic_write, bic_read};
+        io = (KB900X_IO){kb900x_bic_write, kb900x_bic_read};
         current_mode = mode;
         return KB900X_E_OK;
     }
@@ -573,7 +573,7 @@ int kb900x_get_temperature(const kb900x_config_t *config, float *temperature)
     return KB900X_E_OK;
 }
 
-int kb900x_get_vendor_id(const kb900x_config_t *config, int *vendor_id)
+int kb900x_get_vendor_id(const kb900x_config_t *config, uint32_t *vendor_id)
 {
     KB900X_ENSURE_MINIMAL_FW_VERSION(2, 0, 3);
 
@@ -724,23 +724,24 @@ int kb900x_get_sw_rtssm_log(const kb900x_config_t *config, kb900x_sw_rtssm_logs_
     const uint32_t valid_registers[8] = {0x4C0604, 0x4C07C4, 0x4C0984, 0x4C0B44,
                                          0x4C0D04, 0x4C0EC4, 0x4C1084, 0x4C1244};
     for (uint32_t i = header_size; (i + 2) < rtssm_data_size; i += entries_step) {
+        uint32_t entry_idx = (i - header_size) / entries_step;
         // Check entry validity
         uint8_t rpcs_id = 0;
-        logs->entries[i / entries_step].is_valid = 0;
+        logs->entries[entry_idx].is_valid = 0;
         for (int j = 0; j < 8; j++) {
             if ((buffer[i] & 0xFFFFFF) == valid_registers[j]) {
                 rpcs_id = j;
-                logs->entries[i / entries_step].is_valid = 1;
+                logs->entries[entry_idx].is_valid = 1;
                 break;
             }
         }
         memcpy(&kb900x_sw_rtssm, &buffer[i + 1], sizeof(kb900x_sw_rtssm)); // NOLINT
-        logs->entries[i / entries_step].curr_state = kb900x_sw_rtssm.curr_state;
-        logs->entries[i / entries_step].prev_state = kb900x_sw_rtssm.prev_state;
-        logs->entries[i / entries_step].prev_prev_state = kb900x_sw_rtssm.prev_prev_state;
-        logs->entries[i / entries_step].speed = kb900x_sw_rtssm.speed;
-        logs->entries[i / entries_step].rpcs_id = rpcs_id;
-        logs->entries[i / entries_step].timestamp = buffer[i + 2];
+        logs->entries[entry_idx].curr_state = kb900x_sw_rtssm.curr_state;
+        logs->entries[entry_idx].prev_state = kb900x_sw_rtssm.prev_state;
+        logs->entries[entry_idx].prev_prev_state = kb900x_sw_rtssm.prev_prev_state;
+        logs->entries[entry_idx].speed = kb900x_sw_rtssm.speed;
+        logs->entries[entry_idx].rpcs_id = rpcs_id;
+        logs->entries[entry_idx].timestamp = buffer[i + 2];
     }
 
     return KB900X_E_OK;
@@ -817,7 +818,7 @@ int kb900x_read_register(const kb900x_config_t *config, const uint32_t address, 
 }
 
 int kb900x_flash_firmware(const kb900x_config_t *config, const uint8_t *buffer,
-                          const uint32_t buffer_size, const eeprom_config_t *eeprom_config)
+                          const uint32_t buffer_size, const kb900x_eeprom_config_t *eeprom_config)
 {
     if (eeprom_config == NULL || config == NULL || buffer == NULL || buffer_size < 1 ||
         eeprom_config->eeprom_size < 1) {
@@ -842,17 +843,111 @@ int kb900x_flash_firmware(const kb900x_config_t *config, const uint8_t *buffer,
             padded_buffer, buffer, buffer_size);
     }
 
-    int ret = i2c_master_init(config, eeprom_config->slave_addr); // FIXME PASSE slave addr here?
+    int ret =
+        kb900x_i2c_master_init(config, eeprom_config->slave_addr); // FIXME PASSE slave addr here?
     CHECK_SUCCESS_MSG(ret, "Failed to initialize I2C master");
 
-    ret = eeprom_write(config, 0x0000, padded_buffer, eeprom_config->eeprom_size, eeprom_config);
+    ret = kb900x_eeprom_write(config, 0x0000, padded_buffer, eeprom_config->eeprom_size,
+                              eeprom_config);
     CHECK_SUCCESS_MSG(ret, "Failed to flash firmware");
 
     return KB900X_E_OK;
 }
 
+int kb900x_get_config_region(const kb900x_config_t *config,
+                             const kb900x_eeprom_config_t *eeprom_config, uint32_t *start_addr,
+                             uint32_t *length)
+{
+    if (config == NULL || eeprom_config == NULL || eeprom_config->eeprom_size < 1) {
+        KANDOU_ERR("Invalid parameters");
+        return -EINVAL;
+    }
+    // Parse region table to deduce config area start address and length
+    const uint16_t region_table_addr = 0x100;
+    const size_t region_table_len = 0x100;
+    uint8_t region_table[region_table_len];
+    int ret = kb900x_eeprom_read(config, region_table_addr, region_table_len, region_table,
+                                 eeprom_config);
+    CHECK_SUCCESS_MSG(ret, "Failed to read region table");
+
+    // Find the configuration region
+    const uint8_t region_table_entry_len = 48; // Each entry is 48 bytes
+    *start_addr = 0;
+    *length = 0;
+    for (uint8_t i = 0; i < region_table_len; i += region_table_entry_len) {
+        if (region_table[i] == 0x72 && region_table[i + 1] == 0x74) {
+            // Found a region table entry
+            if (region_table[i + 2] == 0x03) { // Configuration region
+                *start_addr = region_table[i + 4] | (region_table[i + 5] << 8) |
+                              (region_table[i + 6] << 16) | (region_table[i + 7] << 24);
+                *length = region_table[i + 8] | (region_table[i + 9] << 8) |
+                          (region_table[i + 10] << 16) | (region_table[i + 11] << 24);
+                KANDOU_DEBUG("Found configuration region at 0x%x with length 0x%x", start_addr,
+                             length);
+                break;
+            }
+        }
+    }
+    // Check if we found the configuration region
+    if (*start_addr == 0 || *length == 0) {
+        KANDOU_ERR("Configuration region not found in region table");
+        return -KB900X_E_EEPROM_FORMAT_ERROR;
+    }
+    return KB900X_E_OK;
+}
+
+int kb900x_configure_firmware(const kb900x_config_t *config,
+                              const kb900x_eeprom_config_t *eeprom_config,
+                              const uint8_t *config_payload, const size_t config_payload_size)
+{
+    if (config == NULL || eeprom_config == NULL || config_payload == NULL ||
+        eeprom_config->eeprom_size < 1) {
+        KANDOU_ERR("Invalid parameters");
+        return -EINVAL;
+    }
+
+    int ret = kb900x_i2c_master_init(config, eeprom_config->slave_addr);
+    CHECK_SUCCESS_MSG(ret, "Failed to initialize I2C master");
+
+    // Parse region table to deduce config area start address and length
+    const uint16_t region_table_addr = 0x100;
+    const size_t region_table_len = 0x100;
+    uint8_t region_table[region_table_len];
+    ret = kb900x_eeprom_read(config, region_table_addr, region_table_len, region_table,
+                             eeprom_config);
+    CHECK_SUCCESS_MSG(ret, "Failed to read region table");
+
+    // Find the configuration region
+    uint32_t config_region_start = 0;
+    uint32_t config_region_length = 0;
+    ret = kb900x_get_config_region(config, eeprom_config, &config_region_start,
+                                   &config_region_length);
+    CHECK_SUCCESS_MSG(ret, "Failed to get configuration region informations");
+    // Check if the configuration payload size is valid
+    if (config_payload_size > config_region_length) {
+        KANDOU_ERR("Configuration payload size is bigger than the configuration region size in "
+                   "the EEPROM : "
+                   "Payload size = %zu, Region size = %u",
+                   config_payload_size, config_region_length);
+        return -EINVAL;
+    }
+    // Erase old configuration region
+    uint8_t reset_payload[config_region_length];
+    for (uint32_t i = 0; i < config_region_length; i++) {
+        reset_payload[i] = 0xff;
+    }
+    ret = kb900x_eeprom_write(config, config_region_start, reset_payload, config_region_length,
+                              eeprom_config);
+    CHECK_SUCCESS_MSG(ret, "Failed to reset configuration region");
+    // Write the new configuration
+    ret = kb900x_eeprom_write(config, config_region_start, config_payload, config_region_length,
+                              eeprom_config);
+    CHECK_SUCCESS_MSG(ret, "Failed to configure firmware");
+    return KB900X_E_OK;
+}
+
 int kb900x_check_firmware(const kb900x_config_t *config, const uint8_t *buffer,
-                          const uint32_t buffer_size, const eeprom_config_t *eeprom_config)
+                          const uint32_t buffer_size, const kb900x_eeprom_config_t *eeprom_config)
 {
     if (config == NULL || buffer == NULL || buffer_size < 1 || eeprom_config->eeprom_size < 1) {
         KANDOU_ERR("Invalid parameters");
@@ -879,9 +974,11 @@ int kb900x_check_firmware(const kb900x_config_t *config, const uint8_t *buffer,
     uint8_t buffer_read[eeprom_config->eeprom_size];
     // FIXME there is more logic in bombinicore here
     // is the porting needed?
-    int ret = i2c_master_init(config, eeprom_config->slave_addr); // FIXME PASSE slave addr here?
+    int ret =
+        kb900x_i2c_master_init(config, eeprom_config->slave_addr); // FIXME PASSE slave addr here?
     CHECK_SUCCESS_MSG(ret, "Failed to initialize I2C master");
-    ret = eeprom_read(config, 0x0000, eeprom_config->eeprom_size, buffer_read, eeprom_config);
+    ret =
+        kb900x_eeprom_read(config, 0x0000, eeprom_config->eeprom_size, buffer_read, eeprom_config);
     CHECK_SUCCESS_MSG(ret, "Failed to read firmware");
 
     for (unsigned i = 0; i < eeprom_config->eeprom_size; i++) {
@@ -948,7 +1045,7 @@ int kb900x_get_revid(const kb900x_config_t *config, uint32_t *revid)
 
 int kb900x_dump_phy_rpcs_registers(const kb900x_config_t *config, kb900x_register_record_t *records)
 {
-    return kb900x_dump_phy_rpcs_registers_with_offset(config, records, 0, DUMP_NUM_REG);
+    return kb900x_dump_phy_rpcs_registers_with_offset(config, records, 0, KB900X_DUMP_NUM_REG);
 }
 
 int kb900x_dump_phy_rpcs_registers_with_offset(const kb900x_config_t *config,
@@ -959,16 +1056,16 @@ int kb900x_dump_phy_rpcs_registers_with_offset(const kb900x_config_t *config,
         return -EINVAL;
     }
 
-    if ((DUMP_NUM_REG < skip_num) || (DUMP_NUM_REG - skip_num < dump_num)) {
+    if ((KB900X_DUMP_NUM_REG < skip_num) || (KB900X_DUMP_NUM_REG - skip_num < dump_num)) {
         return -EINVAL;
     }
 
     // Find the first range and the first register index within that range, given the number of
     // registers to dump
-    size_t start_range = DUMP_NUM_RANGES;
+    size_t start_range = KB900X_DUMP_NUM_RANGES;
     size_t start_reg = 0;
     size_t skip_counter = 0;
-    for (size_t range_i = 0; range_i < DUMP_NUM_RANGES; range_i++) {
+    for (size_t range_i = 0; range_i < KB900X_DUMP_NUM_RANGES; range_i++) {
         const kb900x_register_range_t range = reg_dump_ranges[range_i];
         if (skip_counter <= skip_num && skip_num < skip_counter + range.num_registers) {
             start_range = range_i;
@@ -982,7 +1079,7 @@ int kb900x_dump_phy_rpcs_registers_with_offset(const kb900x_config_t *config,
     size_t dump_counter = 0;
     bool stop_dump =
         false; // Used to break out both loops once we have dumped the requested number of regs
-    for (size_t range_i = start_range; range_i < DUMP_NUM_RANGES && !stop_dump; range_i++) {
+    for (size_t range_i = start_range; range_i < KB900X_DUMP_NUM_RANGES && !stop_dump; range_i++) {
         const kb900x_register_range_t address_range = reg_dump_ranges[range_i];
         // If we are dumping the first register of the dump, we need to start from the 1st register
         // within that range. Otherwise, we can just start at the beginning of the range.

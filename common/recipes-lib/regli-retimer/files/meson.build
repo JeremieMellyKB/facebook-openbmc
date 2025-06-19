@@ -1,5 +1,5 @@
 project('libregli-retimer', 'c',
-    version: '0.3.0',
+    version: '0.4.0',
     license: 'Apache-2.0',
     default_options: ['werror=true', 'warning_level=3'],
     meson_version: '>=0.40')
@@ -43,6 +43,7 @@ endif
 
 install_headers(
     headers,
+    subdir: 'openbmc'
 )
 
 srcs = files(

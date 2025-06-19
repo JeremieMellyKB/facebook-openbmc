@@ -21,16 +21,17 @@
 #include <time.h>
 
 // FIXME too coupled with firmware
-int eeprom_write(const kb900x_config_t *config, const uint16_t addr, const uint8_t *payload,
-                 const size_t payload_size, const eeprom_config_t *eeprom_config)
+int kb900x_eeprom_write(const kb900x_config_t *config, const uint16_t addr, const uint8_t *payload,
+                        const size_t payload_size, const kb900x_eeprom_config_t *eeprom_config)
 {
     if (payload == NULL || config == NULL || eeprom_config == NULL) {
         KANDOU_ERR("Invalid parameters: make sure payload and config are not null");
         return -EINVAL;
     }
     const size_t QUARTER_SIZE_BYTES = 1 << 16; // If 16 bits addressing
-    const size_t i2c_max_write_size =
-        eeprom_config->page_size < TX_FIFO_DEPTH ? eeprom_config->page_size : TX_FIFO_DEPTH;
+    const size_t i2c_max_write_size = eeprom_config->page_size < KB900X_TX_FIFO_DEPTH
+                                          ? eeprom_config->page_size
+                                          : KB900X_TX_FIFO_DEPTH;
     // Making sure the page size is at least 3 bytes (2 address bytes and one data byte)
     if (i2c_max_write_size <= 2) {
         KANDOU_ERR("Invalid page size");
@@ -70,7 +71,7 @@ int eeprom_write(const kb900x_config_t *config, const uint16_t addr, const uint8
         for (size_t i = 0; i < write_size; i++) {
             bytes_to_write[i + 2] = data_bytes[i];
         }
-        int ret = i2c_master_write(config, sa, bytes_to_write, write_size + 2, true);
+        int ret = kb900x_i2c_master_write(config, sa, bytes_to_write, write_size + 2, true);
         CHECK_SUCCESS_MSG(ret, "Failed to write to EEPROM");
 
         // Sleep for transaction to complete in EEPROM
@@ -80,7 +81,8 @@ int eeprom_write(const kb900x_config_t *config, const uint16_t addr, const uint8
         // to assert working communication
         if (bytes_written <= write_size) {
             uint8_t result[write_size];
-            ret = i2c_master_read(config, sa, bytes_to_write, 2, write_size, result, true, false);
+            ret = kb900x_i2c_master_read(config, sa, bytes_to_write, 2, write_size, result, true,
+                                         false);
             CHECK_SUCCESS_MSG(ret, "Something went wrong while reading from EEPROM");
             for (size_t i = 0; i < write_size; i++) {
                 if (result[i] != data_bytes[i]) {
@@ -115,16 +117,17 @@ int eeprom_write(const kb900x_config_t *config, const uint16_t addr, const uint8
     return KB900X_E_OK;
 }
 
-int eeprom_read(const kb900x_config_t *config, const uint16_t addr, const size_t length,
-                uint8_t *result, const eeprom_config_t *eeprom_config)
+int kb900x_eeprom_read(const kb900x_config_t *config, const uint16_t addr, const size_t length,
+                       uint8_t *result, const kb900x_eeprom_config_t *eeprom_config)
 {
     if (result == NULL || config == NULL || eeprom_config == NULL) {
         KANDOU_ERR("Invalid parameters: make sure config, result and eeprom_config are not null");
         return -EINVAL;
     }
     const size_t QUARTER_SIZE_BYTES = 1 << 16; // If 16 bits addressing
-    const size_t i2c_max_read_size =
-        eeprom_config->page_size < RX_FIFO_DEPTH ? eeprom_config->page_size : RX_FIFO_DEPTH;
+    const size_t i2c_max_read_size = eeprom_config->page_size < KB900X_RX_FIFO_DEPTH
+                                         ? eeprom_config->page_size
+                                         : KB900X_RX_FIFO_DEPTH;
 
     if ((addr + length) > eeprom_config->eeprom_size) {
         KANDOU_ERR("Read out of memory bounds! addr = 0x%02x length=%zu", addr, length);
@@ -151,7 +154,8 @@ int eeprom_read(const kb900x_config_t *config, const uint16_t addr, const size_t
         }
         current_address[0] = page_addr >> BITS_IN_BYTE;
         current_address[1] = page_addr & mask;
-        ret = i2c_master_read(config, sa, current_address, 2, read_size, read_buffer, true, false);
+        ret = kb900x_i2c_master_read(config, sa, current_address, 2, read_size, read_buffer, true,
+                                     false);
         CHECK_SUCCESS_MSG(ret, "Something went wrong while reading from EEPROM");
         for (size_t i = 0; i < read_size; i++) {
             result[i + bytes_read] = read_buffer[i];

@@ -23,12 +23,12 @@
 #define KB900X_LOG_VERSION "0.1.0"
 
 typedef enum {
-    LOG_DEBUG = 0,
-    LOG_INFO = 1,
-    LOG_WARN = 2,
-    LOG_ERR = 3,
-    LOG_FATAL = 4,
-    LOG_LEVEL_LENGTH = 5
+    KB900X_LOG_DEBUG = 0,
+    KB900X_LOG_INFO = 1,
+    KB900X_LOG_WARN = 2,
+    KB900X_LOG_ERR = 3,
+    KB900X_LOG_FATAL = 4,
+    KB900X_LOG_LEVEL_LENGTH = 5
 } KB900X_LOG_LEVEL;
 
 void kandou_log_msg(KB900X_LOG_LEVEL level, const char *file, int line, const char *fmt, ...);
@@ -39,10 +39,10 @@ void kandou_log_set_quiet(int enable);
 // void kandou_log_set_lock(logLockFn fn);
 // void kandou_log_set_callback(void (*ptr)());
 
-#define KANDOU_DEBUG(...) kandou_log_msg(LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
-#define KANDOU_INFO(...) kandou_log_msg(LOG_INFO, __FILE__, __LINE__, __VA_ARGS__)
-#define KANDOU_WARN(...) kandou_log_msg(LOG_WARN, __FILE__, __LINE__, __VA_ARGS__)
-#define KANDOU_ERR(...) kandou_log_msg(LOG_ERR, __FILE__, __LINE__, __VA_ARGS__)
-#define KANDOU_FATAL(...) kandou_log_msg(LOG_FATAL, __FILE__, __LINE__, __VA_ARGS__)
+#define KANDOU_DEBUG(...) kandou_log_msg(KB900X_LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
+#define KANDOU_INFO(...) kandou_log_msg(KB900X_LOG_INFO, __FILE__, __LINE__, __VA_ARGS__)
+#define KANDOU_WARN(...) kandou_log_msg(KB900X_LOG_WARN, __FILE__, __LINE__, __VA_ARGS__)
+#define KANDOU_ERR(...) kandou_log_msg(KB900X_LOG_ERR, __FILE__, __LINE__, __VA_ARGS__)
+#define KANDOU_FATAL(...) kandou_log_msg(KB900X_LOG_FATAL, __FILE__, __LINE__, __VA_ARGS__)
 
 #endif // __KB_LOG_H

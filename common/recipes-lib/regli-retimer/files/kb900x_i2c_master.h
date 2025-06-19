@@ -23,27 +23,28 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define TX_FIFO_DEPTH (24)
-#define RX_FIFO_DEPTH (24)
+#define KB900X_TX_FIFO_DEPTH (24)
+#define KB900X_RX_FIFO_DEPTH (24)
 
 // I2C Master interface registers
-#define ee_IC_CON 0xe0081000
-#define ee_IC_TAR 0xe0081004
-#define ee_IC_DATA_CMD 0xe0081010
-#define ee_IC_INTR_MASK 0xe0081030
-#define ee_IC_RAW_INTR_STAT 0xe0081034
-#define ee_IC_ENABLE 0xe008106c
-#define ee_IC_STATUS 0xe0081070
-#define ee_IC_TX_ABRT_SOURCE 0xe0081080
-#define cfg_top_vd_bump_0 0xe048018c
-#define cfg_top_vd_bump_1 0xe0480190
+#define KB900X_ee_IC_CON 0xe0081000
+#define KB900X_ee_IC_TAR 0xe0081004
+#define KB900X_ee_IC_DATA_CMD 0xe0081010
+#define KB900X_ee_IC_INTR_MASK 0xe0081030
+#define KB900X_ee_IC_RAW_INTR_STAT 0xe0081034
+#define KB900X_ee_IC_ENABLE 0xe008106c
+#define KB900X_ee_IC_STATUS 0xe0081070
+#define KB900X_ee_IC_TX_ABRT_SOURCE 0xe0081080
+#define kb900x_cfg_top_vd_bump_0 0xe048018c
+#define kb900x_cfg_top_vd_bump_1 0xe0480190
 
 // Other registers
-#define cpu_periph_clk_gate_en 0xe009005c // I2C Master clock - Clock gate enables per peripheral
-#define tx_abrt_clr 0xe0081054            // Clear interrupts
+#define kb900x_cpu_periph_clk_gate_en                                                              \
+    0xe009005c                        // I2C Master clock - Clock gate enables per peripheral
+#define kb900x_tx_abrt_clr 0xe0081054 // Clear interrupts
 
 // Global variable to store the selected slave address
-extern uint8_t i2c_master_slave_addr;
+extern uint8_t kb900x_i2c_master_slave_addr;
 
 /**
  * \brief Initialize I2C master interface.
@@ -53,7 +54,7 @@ extern uint8_t i2c_master_slave_addr;
  *
  * \return 0 if no error, else the error code
  */
-int i2c_master_init(const kb900x_config_t *config, uint8_t slave_addr);
+int kb900x_i2c_master_init(const kb900x_config_t *config, uint8_t slave_addr);
 
 /**
  * \brief Send I2C write operation from the KB900x I2C master interface
@@ -66,8 +67,8 @@ int i2c_master_init(const kb900x_config_t *config, uint8_t slave_addr);
  *
  * \return 0 if no error, else the error code
  */
-int i2c_master_write(const kb900x_config_t *config, const uint8_t slave_addr, const uint8_t *data,
-                     const size_t data_size, const bool check);
+int kb900x_i2c_master_write(const kb900x_config_t *config, const uint8_t slave_addr,
+                            const uint8_t *data, const size_t data_size, const bool check);
 
 /**
  * \brief Send I2C read operation from the KB900x I2C master interface
@@ -83,9 +84,9 @@ int i2c_master_write(const kb900x_config_t *config, const uint8_t slave_addr, co
  *
  * \return 0 if no error, else the error code
  */
-int i2c_master_read(const kb900x_config_t *config, const uint8_t slave_addr, const uint8_t *addr,
-                    const uint8_t addr_size, const size_t length, uint8_t *result, const bool check,
-                    const bool skip_addr);
+int kb900x_i2c_master_read(const kb900x_config_t *config, const uint8_t slave_addr,
+                           const uint8_t *addr, const uint8_t addr_size, const size_t length,
+                           uint8_t *result, const bool check, const bool skip_addr);
 
 /**
  * \brief Set the I2C master interface slave address
@@ -95,7 +96,7 @@ int i2c_master_read(const kb900x_config_t *config, const uint8_t slave_addr, con
  *
  * \return 0 if no error, else the error code
  */
-int i2c_master_set_slave_address(const kb900x_config_t *config, const uint8_t slave_address);
+int kb900x_i2c_master_set_slave_address(const kb900x_config_t *config, const uint8_t slave_address);
 
 /**
  * \brief Enable/Disable I2C (TX/RX FIFO population)
@@ -106,7 +107,8 @@ int i2c_master_set_slave_address(const kb900x_config_t *config, const uint8_t sl
  *
  * \return 0 if no error, else the error code
  */
-int i2c_master_enable(const kb900x_config_t *config, const bool enable, const bool block_fifo);
+int kb900x_i2c_master_enable(const kb900x_config_t *config, const bool enable,
+                             const bool block_fifo);
 
 /**
  * \brief Wait for I2C inactivity
@@ -115,7 +117,7 @@ int i2c_master_enable(const kb900x_config_t *config, const bool enable, const bo
  *
  * \return 0 if no error, else the error code
  */
-int i2c_master_wait_for_inactivity(const kb900x_config_t *config);
+int kb900x_i2c_master_wait_for_inactivity(const kb900x_config_t *config);
 
 /**
  * \brief Check the I2C interface status
@@ -126,8 +128,8 @@ int i2c_master_wait_for_inactivity(const kb900x_config_t *config);
  *
  * \return 0 if no error, else the error code
  */
-int i2c_master_check_status(const kb900x_config_t *config, const uint8_t slave_address,
-                            const uint8_t *data);
+int kb900x_i2c_master_check_status(const kb900x_config_t *config, const uint8_t slave_address,
+                                   const uint8_t *data);
 
 /**
  * \brief Write a field (part of a 32 bits register)
@@ -140,8 +142,8 @@ int i2c_master_check_status(const kb900x_config_t *config, const uint8_t slave_a
  *
  * \return 0 if no error, else the error code
  */
-int write_field(const kb900x_config_t *config, const uint32_t addr, const uint8_t field_width,
-                const uint8_t field_lsb, const uint32_t value);
+int kb900x_write_field(const kb900x_config_t *config, const uint32_t addr,
+                       const uint8_t field_width, const uint8_t field_lsb, const uint32_t value);
 
 /**
  * \brief Read a field (part of a 32 bits register)
@@ -154,8 +156,8 @@ int write_field(const kb900x_config_t *config, const uint32_t addr, const uint8_
  *
  * \return 0 if no error, else the error code
  */
-int read_field(const kb900x_config_t *config, const uint32_t addr, const uint8_t field_width,
-               const uint8_t field_lsb, uint32_t *value);
+int kb900x_read_field(const kb900x_config_t *config, const uint32_t addr, const uint8_t field_width,
+                      const uint8_t field_lsb, uint32_t *value);
 
 /**
  * \brief Unlock EEPROM - KB900x communication
@@ -167,6 +169,6 @@ int read_field(const kb900x_config_t *config, const uint32_t addr, const uint8_t
  *
  * \return 0 if no error, else the error code
  */
-int unlock_eeprom(const kb900x_config_t *config);
+int kb900x_unlock_eeprom(const kb900x_config_t *config);
 
 #endif // _KB_I2C_MASTER_H

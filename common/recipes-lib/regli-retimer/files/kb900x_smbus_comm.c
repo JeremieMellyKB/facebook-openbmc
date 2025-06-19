@@ -24,7 +24,7 @@ unsigned long SUPPORTED_FUNCS = 0;
 // As per doc, the kernel SMBus driver takes care of adding the PEC when writing
 // and checking it when reading (if using I2C_SMBUS_BLOCK_DATA). When using
 // I2C_SMBUS_I2C_BLOCK_DATA, the PEC is not handled by the kernel, we have to take care of it.
-int smbus_check_supported_func(int handle, unsigned long func)
+int kb900x_smbus_check_supported_func(int handle, unsigned long func)
 {
     if (SUPPORTED_FUNCS == 0) {
         int ret = ioctl(handle, I2C_FUNCS, &SUPPORTED_FUNCS);
@@ -35,9 +35,9 @@ int smbus_check_supported_func(int handle, unsigned long func)
     return (SUPPORTED_FUNCS & func) == func;
 }
 
-int smbus_pec(int handle, bool enabled)
+int kb900x_smbus_pec(int handle, bool enabled)
 {
-    int ret = smbus_check_supported_func(handle, I2C_FUNC_SMBUS_PEC);
+    int ret = kb900x_smbus_check_supported_func(handle, I2C_FUNC_SMBUS_PEC);
     if (ret == 0) {
         // Not supported
         KANDOU_WARN("PEC functionality not supported");
@@ -70,8 +70,8 @@ int get_smbus_command_code(uint8_t address_size, uint8_t *command_code_start,
     return KB900X_E_OK;
 }
 
-int smbus_write_block(const kb900x_config_t *config, const uint32_t address,
-                      const uint8_t address_size, const uint32_t value)
+int kb900x_smbus_write_block(const kb900x_config_t *config, const uint32_t address,
+                             const uint8_t address_size, const uint32_t value)
 {
     // We only use 4 bytes addresses with vendor defined SMBus write register
     if (address_size != 4) {
@@ -106,8 +106,8 @@ int smbus_write_block(const kb900x_config_t *config, const uint32_t address,
     return KB900X_E_OK;
 }
 
-int smbus_write_i2c(const kb900x_config_t *config, const uint32_t address,
-                    const uint8_t address_size, const uint32_t value)
+int kb900x_smbus_write_i2c(const kb900x_config_t *config, const uint32_t address,
+                           const uint8_t address_size, const uint32_t value)
 {
     // We only use 4 bytes addresses with vendor defined SMBus write register
     if (address_size != 4) {
@@ -139,7 +139,7 @@ int smbus_write_i2c(const kb900x_config_t *config, const uint32_t address,
     }
     // Add the PEC
     uint8_t data_to_sign[address_size + payload_size + 3];
-    data_to_sign[0] = i2c_slave_addr << 1; // Write
+    data_to_sign[0] = kb900x_i2c_slave_addr << 1; // Write
     data_to_sign[1] = CCODE_START_END_WRITE_FUNC3;
     for (int i = 0; i < bytecnt_size + address_size + payload_size; i++) {
         data_to_sign[i + 2] = i2c_data.block[i + 1];
@@ -156,8 +156,8 @@ int smbus_write_i2c(const kb900x_config_t *config, const uint32_t address,
     return KB900X_E_OK;
 }
 
-int smbus_read_block(const kb900x_config_t *config, const uint32_t address,
-                     const uint8_t address_size, uint32_t *value)
+int kb900x_smbus_read_block(const kb900x_config_t *config, const uint32_t address,
+                            const uint8_t address_size, uint32_t *value)
 {
     struct i2c_smbus_ioctl_data blk;
     union i2c_smbus_data i2c_data;
@@ -257,8 +257,8 @@ int smbus_read_block(const kb900x_config_t *config, const uint32_t address,
     return ret;
 }
 
-int smbus_read_i2c(const kb900x_config_t *config, const uint32_t address,
-                   const uint8_t address_size, uint32_t *value)
+int kb900x_smbus_read_i2c(const kb900x_config_t *config, const uint32_t address,
+                          const uint8_t address_size, uint32_t *value)
 {
     struct i2c_smbus_ioctl_data blk;
     union i2c_smbus_data i2c_data;
@@ -292,7 +292,7 @@ int smbus_read_i2c(const kb900x_config_t *config, const uint32_t address,
 
         // Add the PEC
         uint8_t data_to_sign[address_size + 3];
-        data_to_sign[0] = i2c_slave_addr << 1; // Write
+        data_to_sign[0] = kb900x_i2c_slave_addr << 1; // Write
         data_to_sign[1] = command_code_start;
         for (int i = 0; i < bytecnt_size + address_size; i++) {
             data_to_sign[i + 2] = i2c_data.block[i + 1];
@@ -333,9 +333,9 @@ int smbus_read_i2c(const kb900x_config_t *config, const uint32_t address,
         }
         uint8_t pec = i2c_data.block[data_offset + address_size + result_size];
         uint8_t data_to_check[address_size + result_size + 4];
-        data_to_check[0] = (i2c_slave_addr << 1) | 0; // Write
+        data_to_check[0] = (kb900x_i2c_slave_addr << 1) | 0; // Write
         data_to_check[1] = command_code_stop;
-        data_to_check[2] = (i2c_slave_addr << 1) | 1; // Read
+        data_to_check[2] = (kb900x_i2c_slave_addr << 1) | 1; // Read
         data_to_check[3] = bytecnt;
         for (int i = 0; i < bytecnt; i++) {
             data_to_check[i + 4] = i2c_data.block[data_offset + i];

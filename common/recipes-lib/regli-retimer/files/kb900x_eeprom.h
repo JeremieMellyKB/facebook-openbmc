@@ -60,7 +60,7 @@ typedef struct {
      * this timing to ensure proper data writing.
      */
     unsigned write_cycle_time_ms;
-} eeprom_config_t;
+} kb900x_eeprom_config_t;
 
 /** \brief Write data to the EEPROM.
  *
@@ -72,8 +72,8 @@ typedef struct {
  *
  * \return 0 if no error, else the error code
  */
-int eeprom_write(const kb900x_config_t *config, const uint16_t addr, const uint8_t *payload,
-                 const size_t payload_size, const eeprom_config_t *eeprom_config);
+int kb900x_eeprom_write(const kb900x_config_t *config, const uint16_t addr, const uint8_t *payload,
+                        const size_t payload_size, const kb900x_eeprom_config_t *eeprom_config);
 
 /** \brief Read data from the EEPROM.
  *
@@ -85,7 +85,7 @@ int eeprom_write(const kb900x_config_t *config, const uint16_t addr, const uint8
  *
  * \return 0 if no error, else the error code
  */
-int eeprom_read(const kb900x_config_t *config, const uint16_t addr, const size_t length,
-                uint8_t *result, const eeprom_config_t *eeprom_config);
+int kb900x_eeprom_read(const kb900x_config_t *config, const uint16_t addr, const size_t length,
+                       uint8_t *result, const kb900x_eeprom_config_t *eeprom_config);
 
 #endif // _KB_EEPROM_H

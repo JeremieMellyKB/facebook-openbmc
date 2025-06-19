@@ -27,10 +27,10 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#define FILENAME_MAX_LENGTH (20)
+#define KB900X_FILENAME_MAX_LENGTH (20)
 
 // Global variable to store the selected slave address
-extern uint8_t i2c_slave_addr;
+extern uint8_t kb900x_i2c_slave_addr;
 
 /** \brief open an i2c connection
  *
@@ -38,13 +38,13 @@ extern uint8_t i2c_slave_addr;
  *
  * \return the handler of the I2C connection
  */
-int i2c_open(int i2c_id);
+int kb900x_i2c_open(int i2c_id);
 
 /** \brief close an i2c connection
  *
  * \param[in] handle the i2c connection handle
  */
-void i2c_close(int handle);
+void kb900x_i2c_close(int handle);
 
 /** \brief select the I2C slave address
  *
@@ -53,7 +53,7 @@ void i2c_close(int handle);
  *
  * \return the result code
  */
-int i2c_select_slave_addr(int handle, uint8_t slave_addr);
+int kb900x_i2c_select_slave_addr(int handle, uint8_t slave_addr);
 
 /** \brief write an I2C block
  *
@@ -64,8 +64,8 @@ int i2c_select_slave_addr(int handle, uint8_t slave_addr);
  *
  * \return the result code
  */
-int i2c_write(const kb900x_config_t *config, const uint32_t address, const uint8_t address_size,
-              const uint32_t value);
+int kb900x_i2c_write(const kb900x_config_t *config, const uint32_t address,
+                     const uint8_t address_size, const uint32_t value);
 
 /** \brief read an I2C block
  *
@@ -76,7 +76,7 @@ int i2c_write(const kb900x_config_t *config, const uint32_t address, const uint8
  *
  * \return the result code
  */
-int i2c_read(const kb900x_config_t *config, const uint32_t address, const uint8_t address_size,
-             uint32_t *value);
+int kb900x_i2c_read(const kb900x_config_t *config, const uint32_t address,
+                    const uint8_t address_size, uint32_t *value);
 
 #endif // _KB_I2C_COMM_H
