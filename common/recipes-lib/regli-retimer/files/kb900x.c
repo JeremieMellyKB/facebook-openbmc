@@ -24,10 +24,18 @@
 #include "kb900x_bic_comm.h"
 #endif
 
+#ifdef BIC_COMMUNICATION
+// Set BIC mode by default
+KB900X_IO io = {kb900x_bic_write, kb900x_bic_read};
+// Save the current comms mode
+kb900x_communication_mode_t current_mode = KB900X_COMM_BIC;
+#else
 // Set I2C mode by default
 KB900X_IO io = {kb900x_i2c_write, kb900x_i2c_read};
 // Save the current comms mode
 kb900x_communication_mode_t current_mode = KB900X_COMM_TWI;
+#endif
+
 // Register ranges to dump
 const kb900x_register_range_t reg_dump_ranges[KB900X_DUMP_NUM_RANGES] = {
     // RPCS CORE
@@ -1778,12 +1786,12 @@ int kb900x_error_dump(const kb900x_config_t *config, const char *filename)
         if (config->intf == 0x05) {
             filename = "kandou_1ou_retimer_error_dump.log";
         }
-        else if (config->intf == 0x30) {
+        else if (config->intf == 0x25) {
             filename = "kandou_3ou_retimer_error_dump.log";
         }
         else {
             KANDOU_ERR(
-                "Warning: Unknown interface, possible value for config.intf are 0x05 or 0x30");
+                "Warning: Unknown interface, possible value for config.intf are 0x05 or 0x25");
             return -EINVAL;
         }
     }
@@ -1882,7 +1890,7 @@ int kb900x_error_dump(const kb900x_config_t *config, const char *filename)
     fprintf(main_file, "}\n");
     fclose(main_file);
 
-    KANDOU_DEBUG("Error dump done, file: %s\n", filename);
+    printf("Error report dumped successfuly to %s\n", filename);
 
     return KB900X_E_OK;
 }

@@ -25,15 +25,9 @@ static struct {
     FILE *fp;
     unsigned level;
     int quiet;
-} KandouLoggerState = {
-    .fp = NULL, // Default to NULL for the file pointer
-#ifdef DEBUG
-    .level = KB900X_LOG_DEBUG,
-#else
-    .level = KB900X_LOG_INFO,
-#endif
-    .quiet = 1 // Default quiet mode to on (1)
-};
+} KandouLoggerState = {.fp = NULL, // Default to NULL for the file pointer
+                       .level = KB900X_LOG_ERR,
+                       .quiet = 0};
 
 char *type[KB900X_LOG_LEVEL_LENGTH] = {"DEBUG", "INFO", "WARN", "ERR", "FATAL"};
 
