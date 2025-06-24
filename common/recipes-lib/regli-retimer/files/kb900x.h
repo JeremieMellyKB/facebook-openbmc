@@ -60,7 +60,10 @@
     GEN(GEN2)                                                                                      \
     GEN(GEN3)                                                                                      \
     GEN(GEN4)                                                                                      \
-    GEN(GEN5)
+    GEN(GEN5)                                                                                      \
+    GEN(UNKNOWN1)                                                                                  \
+    GEN(UNKNOWN2)                                                                                  \
+    GEN(INVALID_ENTRY)
 
 #define KB900X_FOREACH_STATE(STATE)                                                                \
     STATE(RESET)                                                                                   \

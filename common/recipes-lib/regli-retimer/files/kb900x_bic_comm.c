@@ -174,7 +174,7 @@ int kb900x_bic_read(const kb900x_config_t *config, const uint32_t address,
         else {
             // Copy the result to the result buffer
             const uint8_t bytecnt = rbuf[0];
-            if (bytecnt < 6) {
+            if (bytecnt < 6 || rlen < (bytecnt + 1)) {
                 KANDOU_DEBUG(
                     "Invalid number of bytes received (bytecount): %d with command : 0x%08x",
                     bytecnt, address);

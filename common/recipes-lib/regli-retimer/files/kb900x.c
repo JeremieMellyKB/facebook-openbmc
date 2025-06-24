@@ -1795,6 +1795,7 @@ int kb900x_error_dump(const kb900x_config_t *config, const char *filename)
             return -EINVAL;
         }
     }
+    printf("Getting the error dump data from Kandou Retimer ...\n");
     // Empty the file if it already exists
     FILE *main_file = fopen(filename, "w");
     if (main_file == NULL) {
@@ -1837,11 +1838,11 @@ int kb900x_error_dump(const kb900x_config_t *config, const char *filename)
         // Fetch data
         int ret = features_to_log[i].data_function(config, features_to_log[i].data);
         CHECK_SUCCESS_MSG(ret, "Unable to get %s, err code : %d - %s", features_to_log[i].name,
-                          errno, strerror(errno));
+                          errno, strerror(ret));
         // Log data
         ret = features_to_log[i].log_function(features_to_log[i].data, filename_tmp);
         CHECK_SUCCESS_MSG(ret, "Unable to log %s, err code : %d - %s", features_to_log[i].name,
-                          errno, strerror(errno));
+                          errno, strerror(ret));
 
         // Open the main file in append mode
         main_file = fopen(filename, "a");
@@ -1890,7 +1891,8 @@ int kb900x_error_dump(const kb900x_config_t *config, const char *filename)
     fprintf(main_file, "}\n");
     fclose(main_file);
 
-    printf("Error report dumped successfuly to %s\n", filename);
+    printf("Kandou Retimer Error report dumped successfully !\n");
+    printf("Dump file : %s\n", filename);
 
     return KB900X_E_OK;
 }
