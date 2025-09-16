@@ -36,26 +36,6 @@ KB900X_IO io = {kb900x_i2c_write, kb900x_i2c_read};
 kb900x_communication_mode_t current_mode = KB900X_COMM_TWI;
 #endif
 
-// Register ranges to dump
-const kb900x_register_range_t reg_dump_ranges[KB900X_DUMP_NUM_RANGES] = {
-    // RPCS CORE
-    {.base_address = KB900X_RPCS_CORE_BASE_ADDR, .num_registers = KB900X_RPCS_CORE_NUM_REG},
-    // RPCS AON
-    {.base_address = KB900X_RPCS_AON_BASE_ADDR, .num_registers = KB900X_RPCS_AON_NUM_REG},
-    // PHC0
-    {.base_address = KB900X_PHC0_BASE_ADDR, .num_registers = KB900X_PHC0_NUM_REG},
-    // PHC1
-    {.base_address = KB900X_PHC1_BASE_ADDR, .num_registers = KB900X_PHC1_NUM_REG},
-    // PHC2
-    {.base_address = KB900X_PHC2_BASE_ADDR, .num_registers = KB900X_PHC2_NUM_REG},
-    // PHC3
-    {.base_address = KB900X_PHC3_BASE_ADDR, .num_registers = KB900X_PHC3_NUM_REG},
-    // PHT0
-    {.base_address = KB900X_PHT0_BASE_ADDR, .num_registers = KB900X_PHT0_NUM_REG},
-    // PHT2
-    {.base_address = KB900X_PHT1_BASE_ADDR, .num_registers = KB900X_PHT1_NUM_REG},
-};
-
 const kb9003_mapping_t kb9003_mapping = {
     .a_rx =
         {
@@ -444,6 +424,7 @@ int kb900x_detect_communication_mode(const kb900x_config_t *config,
     kb900x_set_communication_mode(config, KB900X_COMM_TWI);
     KANDOU_DEBUG("Trying raw i2c");
     ret = kb900x_get_revid(config, &result);
+    CHECK_SUCCESS_MSG(ret, "Error: Unable to read REVID register to detect communication mode");
 
     // Fix for bitshifting
     const uint32_t bitshifting_val = 0xFF;
@@ -588,7 +569,7 @@ int kb900x_get_vendor_id(const kb900x_config_t *config, uint32_t *vendor_id)
     int ret = 0;
     uint32_t value = 0;
     ret = io.read(config, KB900X_ADDR_VID, KB900X_SMBUS_REGISTER_ADDR_SIZE, &value);
-    CHECK_SUCCESS_MSG(ret, "Unable to read vendor id, err code : %d - %s", errno, strerror(errno));
+    CHECK_SUCCESS_MSG(ret, "Unable to read vendor id, err code : %d - %s", ret, strerror(ret));
     *vendor_id = ((value >> 16) & 0xFF) + (((value >> 24) & 0xFF) << 8);
     return KB900X_E_OK;
 }
@@ -685,7 +666,7 @@ int kb900x_get_sw_rtssm_log(const kb900x_config_t *config, kb900x_sw_rtssm_logs_
     for (size_t i = 0; i < (KB900X_SIZEOF_SW_SHARED_DATA >> 2); ++i) {
         const uint32_t address = sds_addr + i * 4;
         ret = kb900x_read_register(config, address, &chunk);
-        CHECK_SUCCESS_MSG(ret, "Failed reading RTSSM dump data.")
+        CHECK_SUCCESS_MSG(ret, "Failed reading RTSSM dump data. Address: 0x%08x", address);
         buffer[i] = chunk;
     }
 
@@ -877,7 +858,6 @@ int kb900x_get_config_region(const kb900x_config_t *config,
     int ret = kb900x_eeprom_read(config, region_table_addr, region_table_len, region_table,
                                  eeprom_config);
     CHECK_SUCCESS_MSG(ret, "Failed to read region table");
-
     // Find the configuration region
     const uint8_t region_table_entry_len = 48; // Each entry is 48 bytes
     *start_addr = 0;
@@ -890,8 +870,8 @@ int kb900x_get_config_region(const kb900x_config_t *config,
                               (region_table[i + 6] << 16) | (region_table[i + 7] << 24);
                 *length = region_table[i + 8] | (region_table[i + 9] << 8) |
                           (region_table[i + 10] << 16) | (region_table[i + 11] << 24);
-                KANDOU_DEBUG("Found configuration region at 0x%x with length 0x%x", start_addr,
-                             length);
+                KANDOU_DEBUG("Found configuration region at 0x%08X with length 0x%08X", *start_addr,
+                             *length);
                 break;
             }
         }
@@ -917,14 +897,6 @@ int kb900x_configure_firmware(const kb900x_config_t *config,
     int ret = kb900x_i2c_master_init(config, eeprom_config->slave_addr);
     CHECK_SUCCESS_MSG(ret, "Failed to initialize I2C master");
 
-    // Parse region table to deduce config area start address and length
-    const uint16_t region_table_addr = 0x100;
-    const size_t region_table_len = 0x100;
-    uint8_t region_table[region_table_len];
-    ret = kb900x_eeprom_read(config, region_table_addr, region_table_len, region_table,
-                             eeprom_config);
-    CHECK_SUCCESS_MSG(ret, "Failed to read region table");
-
     // Find the configuration region
     uint32_t config_region_start = 0;
     uint32_t config_region_length = 0;
@@ -942,7 +914,7 @@ int kb900x_configure_firmware(const kb900x_config_t *config,
     // Erase old configuration region
     uint8_t reset_payload[config_region_length];
     for (uint32_t i = 0; i < config_region_length; i++) {
-        reset_payload[i] = 0xff;
+        reset_payload[i] = 0xFF;
     }
     ret = kb900x_eeprom_write(config, config_region_start, reset_payload, config_region_length,
                               eeprom_config);
@@ -1051,72 +1023,6 @@ int kb900x_get_revid(const kb900x_config_t *config, uint32_t *revid)
     return KB900X_E_OK;
 }
 
-int kb900x_dump_phy_rpcs_registers(const kb900x_config_t *config, kb900x_register_record_t *records)
-{
-    return kb900x_dump_phy_rpcs_registers_with_offset(config, records, 0, KB900X_DUMP_NUM_REG);
-}
-
-int kb900x_dump_phy_rpcs_registers_with_offset(const kb900x_config_t *config,
-                                               kb900x_register_record_t *records, size_t skip_num,
-                                               size_t dump_num)
-{
-    if (!records) {
-        return -EINVAL;
-    }
-
-    if ((KB900X_DUMP_NUM_REG < skip_num) || (KB900X_DUMP_NUM_REG - skip_num < dump_num)) {
-        return -EINVAL;
-    }
-
-    // Find the first range and the first register index within that range, given the number of
-    // registers to dump
-    size_t start_range = KB900X_DUMP_NUM_RANGES;
-    size_t start_reg = 0;
-    size_t skip_counter = 0;
-    for (size_t range_i = 0; range_i < KB900X_DUMP_NUM_RANGES; range_i++) {
-        const kb900x_register_range_t range = reg_dump_ranges[range_i];
-        if (skip_counter <= skip_num && skip_num < skip_counter + range.num_registers) {
-            start_range = range_i;
-            start_reg = skip_num - skip_counter;
-            break;
-        }
-        skip_counter += range.num_registers;
-    }
-
-    // Start dumping from the 1st range and 1st register within that range
-    size_t dump_counter = 0;
-    bool stop_dump =
-        false; // Used to break out both loops once we have dumped the requested number of regs
-    for (size_t range_i = start_range; range_i < KB900X_DUMP_NUM_RANGES && !stop_dump; range_i++) {
-        const kb900x_register_range_t address_range = reg_dump_ranges[range_i];
-        // If we are dumping the first register of the dump, we need to start from the 1st register
-        // within that range. Otherwise, we can just start at the beginning of the range.
-        const size_t start_reg_i = (range_i == start_range) ? start_reg : 0;
-        for (size_t reg_i = start_reg_i; reg_i < address_range.num_registers && !stop_dump;
-             reg_i++) {
-            // Stop dumping when we have reached the requested number of registers
-            if (dump_counter >= dump_num) {
-                stop_dump = true;
-                continue;
-            }
-
-            // Dump register
-            const uint32_t address = address_range.base_address + reg_i * BYTES_IN_U32;
-            uint32_t value;
-            const int ret = kb900x_read_register(config, address, &value);
-            CHECK_SUCCESS_MSG(ret, "Failed to read register at address 0x%x", address);
-
-            // Create and push record
-            const kb900x_register_record_t record = {.address = address, .value = value};
-            records[dump_counter] = record;
-
-            dump_counter++;
-        }
-    }
-
-    return KB900X_E_OK;
-}
-
 int kb900x_get_tx_presets(const kb900x_config_t *config, kb900x_all_presets_t *presets)
 {
     int ret = 0;
@@ -1160,15 +1066,11 @@ int kb900x_get_tx_presets(const kb900x_config_t *config, kb900x_all_presets_t *p
     CHECK_SUCCESS_MSG(ret, "Unable to get the tx presets (get buffer address), err code : %d - %s",
                       errno, strerror(errno));
 
-    KANDOU_DEBUG("DCCM buff addr=0x%x\n", dccm_buff_addr);
-
     // Read DCCM length
     ret = io.read(config, KB900X_ADDR_PRESET_LENGTH, KB900X_SMBUS_REGISTER_ADDR_SIZE,
                   &dccm_buff_length);
     CHECK_SUCCESS_MSG(ret, "Unable to get the tx presets (get buffer length), err code : %d - %s",
                       errno, strerror(errno));
-
-    KANDOU_DEBUG("DCCM buff length=0x%x\n", dccm_buff_length);
 
     // Check if the buffer length is valid
     if (dccm_buff_length > sizeof(kb900x_all_presets_t)) {
@@ -1264,15 +1166,11 @@ int kb900x_get_hw_rtssm_log(const kb900x_config_t *config, kb900x_hw_rtssm_logs_
     CHECK_SUCCESS_MSG(ret, "Unable to get the tx presets (get buffer address), err code : %d - %s",
                       errno, strerror(errno));
 
-    KANDOU_DEBUG("DCCM buff addr=0x%x\n", dccm_buff_addr);
-
     // Read DCCM length
     ret = io.read(config, KB900X_ADDR_RTSSM_LENGTH, KB900X_SMBUS_REGISTER_ADDR_SIZE,
                   &dccm_buff_length);
     CHECK_SUCCESS_MSG(ret, "Unable to get the tx presets (get buffer length), err code : %d - %s",
                       errno, strerror(errno));
-
-    KANDOU_DEBUG("DCCM buff length=0x%x\n", dccm_buff_length);
 
     // Check if the buffer length is valid
     if (dccm_buff_length > sizeof(kb900x_hw_rtssm_logs_t)) {
@@ -1521,6 +1419,162 @@ int kb900x_get_phy_info(const kb900x_config_t *config, kb9003_phy_info_t *phy_in
         ret = kb900x_get_single_phy_info(config, &(phy_info->b_rx[lane]), mapping);
         CHECK_SUCCESS_MSG(ret, "Error: Unable to read phy info (A RX | B TX side)");
     }
+
+    return KB900X_E_OK;
+}
+
+int kb900x_get_firmware_trace(const kb900x_config_t *config, kb900x_register_dump_t *trace)
+{
+    if (config == NULL) {
+        KANDOU_ERR("Config pointer cannot be NULL");
+        return -EINVAL;
+    }
+    if (trace == NULL) {
+        KANDOU_ERR("Firmware logs pointer cannot be NULL");
+        return -EINVAL;
+    }
+    if (trace->num_records < KB900X_FW_TRACE_SIZE) {
+        KANDOU_ERR("Trace buffer size is too small, expected at least %u, got %u",
+                   KB900X_FW_TRACE_SIZE, trace->num_records);
+        return -EINVAL;
+    }
+    // Read the firmware trace
+    for (uint32_t i = 0; i < KB900X_FW_TRACE_SIZE; i++) {
+        uint32_t addr = KB900X_FW_TRACE_START_ADDR + (i * 4);
+        trace->records[i].address = addr;
+        int ret = kb900x_read_register(config, addr, &trace->records[i].value);
+        CHECK_SUCCESS_MSG(ret, "Error: Unable to read firmware trace at address 0x%08X", addr);
+    }
+    return KB900X_E_OK;
+}
+
+int kb900x_get_phy_rpcs_registers(const kb900x_config_t *config, kb900x_register_dump_t *rpcs_dump)
+{
+    if (config == NULL) {
+        KANDOU_ERR("Config pointer cannot be NULL");
+        return -EINVAL;
+    }
+    if (rpcs_dump == NULL) {
+        KANDOU_ERR("RPCS dump pointer cannot be NULL");
+        return -EINVAL;
+    }
+    if (rpcs_dump->num_records < KB900X_PHY_RPCS_OUTPUT_SIZE) {
+        KANDOU_ERR("RPCS buffer size is too small, expected at least %u, got %u",
+                   KB900X_PHY_RPCS_OUTPUT_SIZE, rpcs_dump->num_records);
+        return -EINVAL;
+    }
+    // Read the RPCS registers
+    for (uint8_t tile = 0; tile < KB9003_NUM_TILES; tile++) {
+        for (uint32_t i = 0; i < KB900X_NUM_PHY_RPCS_REGISTERS; i++) {
+            const uint32_t addr = ((KB900X_PHY_RPCS_REG_ADDR[i] << 8) >> 8) | ((0xe0 + tile) << 24);
+            const uint32_t index = i + tile * KB900X_NUM_PHY_RPCS_REGISTERS;
+            int ret = kb900x_read_register(config, addr, &rpcs_dump->records[index].value);
+            CHECK_SUCCESS(ret);
+            rpcs_dump->records[index].address = addr;
+        }
+    }
+
+    return KB900X_E_OK;
+}
+
+int kb900x_get_rpcs_dbg_counter(const kb900x_config_t *config,
+                                kb900x_rpcs_debug_counter_t *rpcs_dbg)
+{
+    if (config == NULL) {
+        KANDOU_ERR("Config pointer cannot be NULL");
+        return -EINVAL;
+    }
+    if (rpcs_dbg == NULL) {
+        KANDOU_ERR("RPCS debug counter pointer cannot be NULL");
+        return -EINVAL;
+    }
+
+    // Fetch the RPCS debug counter registers
+    const uint8_t addr_read_offset = 4;
+    for (uint8_t tile = 0; tile < KB9003_NUM_TILES; tile++) {
+        for (uint8_t rpcs = 0; rpcs < KB900X_NUM_RPCS; rpcs++) {
+            const uint32_t addr_conf = KB900X_RPCS_DBG_COUNTER_ADDR_CONF(tile, rpcs);
+            const uint32_t addr_read = KB900X_RPCS_DBG_COUNTER_ADDR_READ(addr_conf);
+            uint32_t original_value;
+            // Store the original value
+            int ret = kb900x_read_register(config, addr_conf, &original_value);
+            CHECK_SUCCESS_MSG(ret,
+                              "Error: Unable to read RPCS debug counter configuration at "
+                              "address 0x%08X",
+                              addr_conf);
+            for (uint8_t event_code = 0; event_code < KB900X_NUM_RPCS_EVENTS; event_code++) {
+                const uint32_t index = (tile * KB900X_NUM_RPCS * KB900X_NUM_RPCS_EVENTS) +
+                                       (rpcs * KB900X_NUM_RPCS_EVENTS) + event_code;
+                // Configure
+                const uint32_t conf_value = 0x00FF8007 | (event_code << 8) | original_value;
+                ret = kb900x_write_register(config, addr_conf, conf_value);
+                CHECK_SUCCESS_MSG(ret,
+                                  "Error: Unable to configure RPCS debug counter at address "
+                                  "0x%08X",
+                                  addr_conf);
+                // Release clear flag
+                ret = kb900x_write_register(config, addr_conf, conf_value & 0xFFFFFFFD);
+                CHECK_SUCCESS_MSG(ret,
+                                  "Error: Unable to reset RPCS debug counter at address "
+                                  "0x%08X",
+                                  addr_conf + addr_read_offset);
+                // Read
+                uint32_t value;
+                ret = kb900x_read_register(config, addr_read, &value);
+                CHECK_SUCCESS_MSG(ret,
+                                  "Error: Unable to read RPCS debug counter at address "
+                                  "0x%08X",
+                                  addr_read);
+                rpcs_dbg->entries[index].tile_id = tile;
+                rpcs_dbg->entries[index].rpcs_id = rpcs;
+                rpcs_dbg->entries[index].event_code = event_code;
+                rpcs_dbg->entries[index].value = value;
+            }
+            // Restore
+            ret = kb900x_write_register(config, addr_conf, original_value);
+            CHECK_SUCCESS_MSG(ret,
+                              "Error: Unable to restore RPCS debug counter configuration at "
+                              "address 0x%08X",
+                              addr_conf);
+        }
+    }
+
+    return KB900X_E_OK;
+}
+
+int kb900x_log_firmware_trace(kb900x_register_dump_t *trace, const char *filename)
+{
+    if (trace == NULL) {
+        KANDOU_ERR("Trace buffer pointer cannot be NULL");
+        return -EINVAL;
+    }
+    if (filename == NULL) {
+        KANDOU_ERR("Firmware trace filename cannot be NULL");
+        return -KB900X_E_ERR;
+    }
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        KANDOU_ERR("Error while trying to create/open log file: %s", filename);
+        return -KB900X_E_ERR;
+    }
+
+    // First two entries are index and count
+    fprintf(file, "Current index: %u\n", trace->records[0].value);
+    fprintf(file, "Count: %u\n", trace->records[1].value);
+    // We ignore the first two entries
+    // They are meta entries, giving info about the log index and number of valid entries
+    for (uint32_t i = 2; i < KB900X_FW_TRACE_SIZE; i++) {
+        const char *error_type =
+            ((trace->records[i].value & 0x70000000) >> 28) == 0 ? "Info" : "Error";
+        uint16_t file_id = (trace->records[i].value & 0x0FF00000) >> 20;
+        uint16_t line = (trace->records[i].value & 0x000FFF00) >> 8;
+        uint16_t code = (trace->records[i].value & 0x00FF);
+        fprintf(file,
+                "Index: %03u, Value: 0x%08x, Type: %s, FileId: %u, Line number: %u, Code: 0x%02x\n",
+                (i - 1), trace->records[i].value, error_type, file_id, line, code);
+    }
+
+    fclose(file);
 
     return KB900X_E_OK;
 }
@@ -1776,6 +1830,74 @@ int kb900x_log_sw_rtssm(const kb900x_sw_rtssm_logs_t *data, const char *filename
     return KB900X_E_OK;
 }
 
+int kb900x_log_registers_record(const kb900x_register_dump_t *data, const char *filename)
+{
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        KANDOU_ERR("Error while trying to create/open log file: %s", filename);
+        return -KB900X_E_ERR;
+    }
+
+    fprintf(file, "{\n");
+    for (uint32_t i = 0; i < data->num_records; i++) {
+        fprintf(file, "        \"0x%08x\": %u,\n", data->records[i].address,
+                data->records[i].value);
+    }
+    fseek(file, -2, SEEK_END); // Move the file pointer back to overwrite the last comma
+    fprintf(file, "\n   }\n");
+
+    fclose(file);
+    return KB900X_E_OK;
+}
+
+int kb900x_log_phy_rpcs_registers(const kb900x_register_dump_t *data, const char *filename)
+{
+    if (data == NULL || filename == NULL) {
+        KANDOU_ERR("Error: config or filename is NULL");
+        return -EINVAL;
+    }
+    // Log the data
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        KANDOU_ERR("Error while trying to create/open log file: %s", filename);
+        return -KB900X_E_ERR;
+    }
+    fprintf(file, "address, value\n");
+    for (uint32_t i = 0; i < data->num_records; i++) {
+        fprintf(file, "0x%08X, 0x%08X\n", data->records[i].address, data->records[i].value);
+    }
+    fclose(file);
+    return KB900X_E_OK;
+}
+
+int kb900x_log_rpcs_dbg_counter(const kb900x_rpcs_debug_counter_t *data, const char *filename)
+{
+    if (data == NULL || filename == NULL) {
+        KANDOU_ERR("Error: data or filename is NULL");
+        return -EINVAL;
+    }
+    // Log the data
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        KANDOU_ERR("Error while trying to create/open log file: %s", filename);
+        return -KB900X_E_ERR;
+    }
+    const uint32_t nb_entries = KB9003_NUM_TILES * KB900X_NUM_RPCS * KB900X_NUM_RPCS_EVENTS;
+    fprintf(file, "[\n");
+    for (uint32_t i = 0; i < nb_entries; i++) {
+        fprintf(file, "    {\n");
+        fprintf(file, "        \"tile_id\": %u,\n", data->entries[i].tile_id);
+        fprintf(file, "        \"rpcs_id\": %u,\n", data->entries[i].rpcs_id);
+        fprintf(file, "        \"event_code\": %u,\n", data->entries[i].event_code);
+        fprintf(file, "        \"value\": %u\n", data->entries[i].value);
+        fprintf(file, "    }%s\n", (i < nb_entries - 1) ? "," : "");
+    }
+    fprintf(file, "]\n");
+
+    fclose(file);
+    return KB900X_E_OK;
+}
+
 int kb900x_error_dump(const kb900x_config_t *config, const char *filename)
 {
     if (config == NULL) {
@@ -1817,6 +1939,16 @@ int kb900x_error_dump(const kb900x_config_t *config, const char *filename)
     kb900x_sw_rtssm_logs_t sw_rtssm = {0};
     kb900x_hw_rtssm_logs_t hw_rtssm = {0};
     kb9003_phy_info_t phy_info = {0};
+    kb900x_register_record_t trace_records[KB900X_FW_TRACE_SIZE] = {0};
+    kb900x_register_dump_t trace = {
+        .num_records = KB900X_FW_TRACE_SIZE,
+        .records = trace_records,
+    };
+    kb900x_register_record_t phy_rpcs_records[KB900X_PHY_RPCS_OUTPUT_SIZE] = {0};
+    kb900x_register_dump_t phy_rpcs = {
+        .num_records = KB900X_PHY_RPCS_OUTPUT_SIZE,
+        .records = phy_rpcs_records,
+    };
 
     const LogFunction features_to_log[] = {
         {(int (*)(const kb900x_config_t *, void *))kb900x_get_fom,
@@ -1829,6 +1961,11 @@ int kb900x_error_dump(const kb900x_config_t *config, const char *filename)
          (int (*)(const void *, const char *))kb900x_log_hw_rtssm, "hw_rtssm", &hw_rtssm},
         {(int (*)(const kb900x_config_t *, void *))kb900x_get_phy_info,
          (int (*)(const void *, const char *))kb900x_log_phy_info, "phy_info", &phy_info},
+        {(int (*)(const kb900x_config_t *, void *))kb900x_get_firmware_trace,
+         (int (*)(const void *, const char *))kb900x_log_registers_record, "firmware_trace",
+         &trace},
+        {(int (*)(const kb900x_config_t *, void *))kb900x_get_phy_rpcs_registers,
+         (int (*)(const void *, const char *))kb900x_log_registers_record, "phy_rpcs", &phy_rpcs},
     };
 
     for (size_t i = 0; i < sizeof(features_to_log) / sizeof(features_to_log[0]); i++) {

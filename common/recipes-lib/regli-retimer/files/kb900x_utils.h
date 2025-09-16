@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <string.h>
 
+//! CFFI
 /**
  * \brief This struct is used to store the I2C and IPMB configuration for
  * communications with KB900x.
@@ -31,10 +32,11 @@
 typedef struct {
     uint8_t intf;    // Used only for BIC communication
     uint8_t slot_id; // Used only for BIC communication
-    int bus_id;      // Used only for BIC communication
+    int bus_id;
     uint8_t retimer_addr;
     int handle; // Used only for direct I2C connection
 } kb900x_config_t;
+//! CFFI END
 
 // Constants
 // Command code as per supplemental spec Table 6-3.

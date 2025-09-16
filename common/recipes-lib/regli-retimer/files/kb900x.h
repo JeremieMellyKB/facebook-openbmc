@@ -31,6 +31,9 @@
 #define KB900X_LINK_STATUS_TIMEOUT (500) // FIXME magic number - How much do we have to wait?
 #define KB900X_SIZEOF_SW_SHARED_DATA                                                               \
     (0x400 * 4) // NOTE: MUST be a multiple of 4, because we can only read in 4B chunks
+#define KB9003_NUM_TILES (4)
+#define KB900X_NUM_RPCS (8)
+#define KB900X_NUM_RPCS_EVENTS (128)
 #define KB9003_NUM_LANES (16)
 #define KB9003_MAX_NUM_LINKS (8)
 #define KB900X_DCCM_END_ADDR_A0 (0x80008000)
@@ -38,6 +41,8 @@
 #define KB900X_SDS_MAGIC_HEADER (0x4B425353) // 'KBSS' big-endian
 #define KB900X_SW_RTSSM_SIZE (341)
 #define KB900X_FEAT_REQ_RETRIES (10)
+#define KB900X_FW_TRACE_START_ADDR (0x8000e5ec)
+#define KB900X_FW_TRACE_SIZE (639)
 
 // HW RTSSM delta conversion constants
 #define KB900X_DELTA_OVERFLOW (0xFFFFFFFF)
@@ -152,12 +157,16 @@ typedef enum {
     KB900X_FEAT_REQ_STATUS_FAILURE = 3,
 } kb900x_feature_req_status_t;
 
+// NOTE: these comments are used to denote what must be included in the headerfile for the CFFI
+//! CFFI
 // Communication modes
 typedef enum {
     KB900X_COMM_SMBUS = 0,
     KB900X_COMM_TWI = 1,
     KB900X_COMM_BIC = 2,
 } kb900x_communication_mode_t;
+// NOTE: these comments are used to denote what must be included in the headerfile for the CFFI
+//! CFFI END
 
 // Boot Status
 typedef enum {
@@ -244,7 +253,21 @@ static_assert(sizeof(kb900x_link_status_t) == sizeof(uint32_t),
 typedef struct {
     uint32_t address;
     uint32_t value;
-} kb900x_register_record_t;
+} ALIGN_PACKED(4) kb900x_register_record_t;
+static_assert(sizeof(kb900x_register_record_t) == 2 * sizeof(uint32_t),
+              "kb900x_link_status_t size mismatch!");
+
+/**
+ * \brief This struct is used to hold the register dump (kb900x_get_register_dump)
+ *
+ * It contains a list of register records, the number of records and a name.
+ */
+typedef struct {
+    /** The number of records in this dump */
+    uint32_t num_records;
+    /** The register records */
+    kb900x_register_record_t *records;
+} ALIGN_PACKED(4) kb900x_register_dump_t;
 
 /**
  * \brief Encode a range of register addresses to dump.
@@ -474,8 +497,33 @@ static_assert(sizeof(kb900x_sw_rtssm_entry_t) == sizeof(uint64_t),
 typedef struct {
     kb900x_sw_rtssm_entry_t entries[KB900X_SW_RTSSM_SIZE];
 } ALIGN_PACKED(4) kb900x_sw_rtssm_logs_t;
-static_assert(sizeof(kb900x_sw_rtssm_logs_t) == 341 * sizeof(uint64_t),
+static_assert(sizeof(kb900x_sw_rtssm_logs_t) == KB900X_SW_RTSSM_SIZE * sizeof(uint64_t),
               "kb900x_sw_rtssm_log_t size mismatch!");
+
+/**
+ * \brief Struct to hold an entry of the RPCS debug counter
+ */
+typedef struct {
+    uint8_t tile_id;
+    uint8_t rpcs_id;
+    uint8_t event_code;
+    uint8_t _;
+    uint32_t value;
+} ALIGN_PACKED(4) kb900x_rpcs_debug_counter_entry_t;
+static_assert(sizeof(kb900x_rpcs_debug_counter_entry_t) == 2 * sizeof(uint32_t),
+              "kb900x_rpcs_debug_counter_t size mismatch!");
+
+/**
+ * \brief Struct to hold the RPCS debug counter informations
+ */
+typedef struct {
+    kb900x_rpcs_debug_counter_entry_t
+        entries[KB900X_NUM_RPCS * KB9003_NUM_TILES * KB900X_NUM_RPCS_EVENTS];
+} ALIGN_PACKED(4) kb900x_rpcs_debug_counter_t;
+static_assert(sizeof(kb900x_rpcs_debug_counter_t) == KB900X_NUM_RPCS * KB9003_NUM_TILES *
+                                                         KB900X_NUM_RPCS_EVENTS *
+                                                         sizeof(kb900x_rpcs_debug_counter_entry_t),
+              "kb900x_rpcs_debug_counter_t size mismatch!");
 
 // Type and struct to inject different read/write methods (SMBus, raw I2C, mocked for unit tests)
 typedef int (*KB900X_WRITE_OPERATION)(const kb900x_config_t *config, const uint32_t address,
@@ -580,6 +628,8 @@ int kb900x_detect_communication_mode(const kb900x_config_t *config,
  */
 int kb900x_switch_communication_mode(const kb900x_config_t *config,
                                      kb900x_communication_mode_t mode);
+// NOTE: these comments are used to denote what must be included in the headerfile for the CFFI
+//! CFFI END
 
 /** \brief Read the temperature of a retimer lane.
  *
@@ -690,6 +740,8 @@ int kb900x_get_sw_rtssm_log(const kb900x_config_t *config, kb900x_sw_rtssm_logs_
 int kb900x_get_link_status(const kb900x_config_t *config, int link_id,
                            kb900x_link_status_t *link_status);
 
+// NOTE: these comments are used to denote what must be included in the headerfile for the CFFI
+//! CFFI
 /** \brief Write to a register with a 4-byte address.
  *
  * \param[in] config the config context, cannot be NULL
@@ -710,6 +762,8 @@ int kb900x_write_register(const kb900x_config_t *config, const uint32_t address,
  * \return 0 if no error, else the error code
  */
 int kb900x_read_register(const kb900x_config_t *config, const uint32_t address, uint32_t *result);
+// NOTE: these comments are used to denote what must be included in the headerfile for the CFFI
+//! CFFI END
 
 /** \brief Write a firmware image to the EEPROM.
  *
@@ -791,46 +845,6 @@ int kb900x_get_boot_status(const kb900x_config_t *config, kb900x_boot_status_t *
 int kb900x_get_revid(const kb900x_config_t *config, uint32_t *revid);
 
 /**
- * \brief Dump all PHY and RPCS registers to a user-provided pointer.
- *
- * \param[in] config the config context, cannot be NULL
- * \param[out] records a non-NULL pointer where to write the dump records,
- *                     should point to a buffer large enough to hold all the
- *                     records. The number of records that will be written can
- *                     be found at runtime using KB900X_DUMP_NUM_REG. If you cannot
- *                     allocate enough memory for a complete register dump, you
- *                     can use kb900x_dump_phy_rpcs_registers_with_offset(), to perform
- *                     a partial dump.
- *
- * \return 0 if no error, else the error code
- */
-int kb900x_dump_phy_rpcs_registers(const kb900x_config_t *config,
-                                   kb900x_register_record_t *records);
-
-/**
- * \brief Dump PHY and RPCS registers to a user-provided pointer,
- * but skip a number of registers first and then only dump a certain number of registers.
- *
- * \note Use this to dump all PHY/RPCS registers in several steps. Useful if
- *       if you cannot allocate enough memory for a complete register dump.
- *
- * \param[in] config the config context, cannot be NULL
- * \param[out] records a non-NULL pointer where to write the dump records,
- *                     should point to a buffer large enough to hold the number
- *                     of records specified in dump_num
- * \param[in] skip_num the number of registers to skip before starting the dump, should not
- *                     be > KB900X_DUMP_NUM_REG (the total number of registers that can be dumped).
- * \param[in] dump_num the number of registers to dump, note that this number MUST be <= than
- *                     KB900X_DUMP_NUM_REG (the total number of registers that can be dumped) -
- * skip_num. Otherwise, this function will return -EINVAL.
- *
- * \return 0 if no error, else the error code
- */
-int kb900x_dump_phy_rpcs_registers_with_offset(const kb900x_config_t *config,
-                                               kb900x_register_record_t *records, size_t skip_num,
-                                               size_t dump_num);
-
-/**
  * \brief Read the TX presets for all lanes.
  *
  * \warning Only in SMBUS / BIC mode.
@@ -893,7 +907,66 @@ int kb900x_get_fom(const kb900x_config_t *config, kb900x_fom_t *fom);
  */
 int kb900x_get_phy_info(const kb900x_config_t *config, kb9003_phy_info_t *phy_info);
 
+/**
+ * \brief Get the firmware trace.
+ *
+ * This function reads the firmware trace from the KB900x retimer and fills the provided
+ * `trace` structure with the trace data.
+ *
+ * \warning kb900x_register_dump_t::num_records has to be set to at least `KB900X_FW_TRACE_SIZE` and
+ * kb900x_register_dump_t::records array has to be allocated accordingly.
+ *
+ * \param[in] config the config context, cannot be NULL
+ * \param[out] trace a pointer to a kb900x_register_dump_t with an array of size
+ * `KB900X_FW_TRACE_SIZE` used to store the trace data, cannot be NULL
+ *
+ * \return 0 if no error, else the error code
+ */
+int kb900x_get_firmware_trace(const kb900x_config_t *config, kb900x_register_dump_t *trace);
+
+/**
+ * \brief Get the PHY and RPCS registers for all lanes.
+ *
+ * This function reads the PHY and RPCS registers for all lanes and fills the provided `rpcs_dump`
+ * structure with the register data.
+ *
+ * \warning kb900x_register_dump_t::num_records has to be set to at least
+ * `KB900X_PHY_RPCS_OUTPUT_SIZE` and kb900x_register_dump_t::records array has to be allocated
+ * accordingly.
+ *
+ * \param[in] config the config context, cannot be NULL
+ * \param[out] rpcs_dump a pointer to a kb900x_register_dump_t with an array of size
+ * `KB900X_PHY_RPCS_OUTPUT_SIZE` used to store the RPCS register data, cannot be NULL
+ *
+ * \return 0 if no error, else the error code
+ */
+int kb900x_get_phy_rpcs_registers(const kb900x_config_t *config, kb900x_register_dump_t *rpcs_dump);
+
+/**
+ * \brief Get the RPCS debug counter.
+ *
+ * This function reads the RPCS debug counter and fills the provided `kb900x_rpcs_debug_counter_t`
+ * structure with the debug counter data.
+ *
+ * \param[in] config the config context, cannot be NULL
+ * \param[out] rpcs_dbg a pointer to a kb900x_rpcs_debug_counter_t, cannot be NULL
+ *
+ * \return 0 if no error, else the error code
+ */
+int kb900x_get_rpcs_dbg_counter(const kb900x_config_t *config,
+                                kb900x_rpcs_debug_counter_t *rpcs_dbg);
+
 //***** Log functions **********//
+/**
+ * \brief Write the firmware trace in a log file.
+ *
+ * \param[in] trace the firmware trace, cannot be NULL
+ * \param[in] filename the name of the log file to generate, cannot be NULL
+ *
+ * \return 0 if no error, else the error code
+ */
+int kb900x_log_firmware_trace(kb900x_register_dump_t *trace, const char *filename);
+
 /**
  * \brief Generate a log file from the HW RTSSM log.
  *
@@ -953,6 +1026,38 @@ int kb900x_log_phy_info(const kb9003_phy_info_t *data, const char *filename);
  * \return 0 if no error, else the error code
  */
 int kb900x_log_sw_rtssm(const kb900x_sw_rtssm_logs_t *data, const char *filename);
+
+/**
+ * \brief Generate a log file from the registers dump.
+ *
+ * \param[in] record the registers dump, cannot be NULL
+ * \param[in] filename the name of the log file to generate, cannot be NULL
+ *
+ * \return 0 if no error, else the error code
+ */
+int kb900x_log_registers_record(const kb900x_register_dump_t *record, const char *filename);
+
+/**
+ * \brief Generate a CSV file containing the RPCS and PHY registers.
+ *
+ * \param[in] data the data containing the RPCS and PHY registers, cannot be NULL
+ * \param[in] filename the name of the CSV file to generate, cannot be NULL
+ *
+ * \return 0 if no error, else the error code
+ */
+int kb900x_log_phy_rpcs_registers(const kb900x_register_dump_t *data, const char *filename);
+
+/**
+ * \brief Generate a log file from the RPCS debug counter.
+ *
+ * \note The log file is a JSON file that contains the RPCS debug counter.
+ *
+ * \param[in] data the RPCS debug counter, cannot be NULL
+ * \param[in] filename the name of the JSON file to generate, cannot be NULL
+ *
+ * \return 0 if no error, else the error code
+ */
+int kb900x_log_rpcs_dbg_counter(const kb900x_rpcs_debug_counter_t *data, const char *filename);
 
 /**
  * \brief Read comprehensive debug information and dump it to a file.

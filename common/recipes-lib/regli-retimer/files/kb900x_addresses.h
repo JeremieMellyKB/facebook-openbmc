@@ -53,6 +53,11 @@
 #define KB900X_PHY_CORE (0x00040000)
 #define KB900X_PHY_LANE (0x00000800)
 
+// RPCS Debug Counter
+#define KB900X_RPCS_DBG_COUNTER_BASE_ADDR (0xE04C0660)
+#define KB900X_RPCS_DBG_COUNTER_STEPS (448)
+#define KB900X_RPCS_DBG_COUNTER_OFFSET_READ (4)
+
 // Phy registers
 #define KB900X_RX_STARTUP_FOM (0x8434)
 #define KB900X_RX_MM_FOM (0x8430)
@@ -164,5 +169,14 @@
 
 #define KB900X_RX_PCS_IN_5_ADDR(tile_id, phy_id, phy_lane_id)                                      \
     (KB900X_CALC_ADDR(tile_id, phy_id, phy_lane_id) + KB900X_RX_PCS_IN_5)
+
+// Compute RPCS Debug Counter address
+#define KB900X_RPCS_DBG_COUNTER_ADDR_CONF(tile_id, rpcs_id)                                        \
+    ((((KB900X_RPCS_DBG_COUNTER_BASE_ADDR + (rpcs_id * KB900X_RPCS_DBG_COUNTER_STEPS)) << 8) >>    \
+      8) |                                                                                         \
+     (KB900X_APB_OFFSET + tile_id * KB900X_TILE))
+
+#define KB900X_RPCS_DBG_COUNTER_ADDR_READ(rpcs_dbg_counter_addr_conf)                              \
+    (rpcs_dbg_counter_addr_conf + KB900X_RPCS_DBG_COUNTER_OFFSET_READ)
 
 #endif // _KB_COMMAND_H

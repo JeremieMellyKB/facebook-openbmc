@@ -219,13 +219,33 @@ int kb900x_smbus_read_block(const kb900x_config_t *config, const uint32_t addres
                                 strerror(errno));
             }
         }
+        // Check address
+        uint32_t returned_address = 0;
+        if (address_size == 4) {
+            returned_address = i2c_data.block[1] | (i2c_data.block[2] << BITS_IN_BYTE) |
+                               (i2c_data.block[3] << (2 * BITS_IN_BYTE)) |
+                               (i2c_data.block[4] << (3 * BITS_IN_BYTE));
+        }
+        else if (address_size == 2) {
+            returned_address = i2c_data.block[1] | (i2c_data.block[2] << BITS_IN_BYTE);
+        }
+        else {
+            KANDOU_ERR("Address size not supported. Must be 2 or 4 bytes.");
+            return -EINVAL;
+        }
+        if ((returned_address << 8) != (address << 8)) {
+            KANDOU_WARN(
+                "Address mismatch: expected 0x%08x, got 0x%08x - potential collision - retrying...",
+                address, returned_address);
+            continue;
+        }
         break;
     }
     // The data are two of four bytes of address and 4 bytes of data
     const uint8_t nb_of_data_received = i2c_data.block[0];
     // Parse response
     if (result_size < nb_of_data_received - address_size) {
-        KANDOU_ERR("Buffer size too small: received %d expected %d\n",
+        KANDOU_ERR("Buffer size too small: received %d expected %d",
                    nb_of_data_received - address_size, result_size);
         return -EINVAL;
     }
@@ -244,10 +264,6 @@ int kb900x_smbus_read_block(const kb900x_config_t *config, const uint32_t addres
         }
     }
 
-    // for (size_t i = 0; i < result_size; i++) {
-    // result is little endian -> reverse
-    // result[i] = i2c_data.block[bytecnt_size + address_size + (result_size - 1 - i)];
-    // }
     *value = 0;
     for (size_t i = 0; i < result_size; i++) {
         // result is little endian -> reverse
@@ -298,11 +314,6 @@ int kb900x_smbus_read_i2c(const kb900x_config_t *config, const uint32_t address,
             data_to_sign[i + 2] = i2c_data.block[i + 1];
         }
         i2c_data.block[bytecnt_size + address_size + 1] = cal_crc8(data_to_sign, address_size + 3);
-        // for(int i = 0; i < address_size + 3; i++){
-        //     KANDOU_INFO("0x%02x", 0x23 << 1);
-        //     KANDOU_INFO("data_to_sign[%d] = %02x", i, data_to_sign[i]);
-        // }
-        // KANDOU_INFO("PEC: %02x", i2c_data.block[bytecnt_size + address_size + 1]);
         blk.read_write = I2C_SMBUS_WRITE;
         blk.command = command_code_start;
         blk.size = I2C_SMBUS_I2C_BLOCK_DATA;
@@ -322,6 +333,28 @@ int kb900x_smbus_read_i2c(const kb900x_config_t *config, const uint32_t address,
         // Send read
         ret = ioctl(config->handle, I2C_SMBUS, &blk);
         if (ret < 0) {
+            continue;
+        }
+        // Check address
+        uint32_t returned_address = 0;
+        if (address_size == 4) {
+            returned_address = i2c_data.block[data_offset] |
+                               (i2c_data.block[data_offset + 1] << BITS_IN_BYTE) |
+                               (i2c_data.block[data_offset + 2] << (2 * BITS_IN_BYTE)) |
+                               (i2c_data.block[data_offset + 3] << (3 * BITS_IN_BYTE));
+        }
+        else if (address_size == 2) {
+            returned_address =
+                i2c_data.block[data_offset] | (i2c_data.block[data_offset + 1] << BITS_IN_BYTE);
+        }
+        else {
+            KANDOU_ERR("Address size not supported. Must be 2 or 4 bytes.");
+            return -EINVAL;
+        }
+        if ((returned_address << 8) != (address << 8)) {
+            KANDOU_WARN(
+                "Address mismatch: expected 0x%08x, got 0x%08x - potential collision - retrying...",
+                address, returned_address);
             continue;
         }
         // Check PEC

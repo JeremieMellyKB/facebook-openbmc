@@ -111,7 +111,15 @@ int kb900x_bic_write(const kb900x_config_t *config, const uint32_t address,
 int kb900x_bic_read(const kb900x_config_t *config, const uint32_t address,
                     const uint8_t address_size, uint32_t *value)
 {
-    uint8_t nb_retry = 5;
+    if (address_size != 2 && address_size != 4) {
+        KANDOU_ERR("Address size must be 2 or 4 bytes");
+        return -EINVAL;
+    }
+    if (value == NULL) {
+        KANDOU_ERR("Value pointer is NULL");
+        return -EINVAL;
+    }
+    uint8_t nb_retry = 10;
     while (nb_retry > 0) {
         uint8_t tlen = 0;
         uint8_t rlen = 0;
@@ -167,32 +175,63 @@ int kb900x_bic_read(const kb900x_config_t *config, const uint32_t address,
         ret = bic_data_send(config->slot_id, NETFN_APP_REQ, CMD_APP_MASTER_WRITE_READ, tbuf, tlen,
                             rbuf, &rlen, config->intf);
         if (ret != 0 || rlen == 0) {
-            KANDOU_WARN("bic_data_wrapper failed with error code: %d", ret);
+            KANDOU_WARN("bic_data_wrapper failed with error code: %d retrying...", ret);
             nb_retry--;
             continue;
         }
-        else {
-            // Copy the result to the result buffer
-            const uint8_t bytecnt = rbuf[0];
-            if (bytecnt < 6 || rlen < (bytecnt + 1)) {
-                KANDOU_DEBUG(
-                    "Invalid number of bytes received (bytecount): %d with command : 0x%08x",
-                    bytecnt, address);
-                nb_retry--;
-                continue;
-            }
-            const uint8_t result_size = 4;
-            *value = 0;
-            for (size_t i = 0; i < result_size; i++) {
-                // As SMBus expect payload in little endian
-                // We reverse the payload to match the expected format
-                *value = *value | ((rbuf[bytecnt - result_size + i + 1] << (i * BITS_IN_BYTE)));
-            }
+        // Checking for the number of bytes received
+        const uint8_t bytecnt = rbuf[0];
+        if (bytecnt < 6 || rlen < (bytecnt + 1)) {
+            KANDOU_DEBUG("Invalid number of bytes received (bytecount): %d with command : 0x%08x "
+                         "retrying...",
+                         bytecnt, address);
+            nb_retry--;
+            continue;
+        }
+        // Check address
+        uint32_t returned_address = 0;
+        if (address_size == 4) {
+            returned_address = rbuf[1] | (rbuf[2] << 8) | (rbuf[3] << 16) | (rbuf[4] << 24);
+        }
+        else if (address_size == 2) {
+            returned_address = rbuf[1] | (rbuf[2] << 8);
+        }
+        if ((returned_address << 8) != (address << 8)) {
+            KANDOU_WARN(
+                "Address mismatch: expected 0x%08x, got 0x%08x - potential collision - retrying...",
+                address, returned_address);
+            nb_retry--;
+            continue;
+        }
+        // Check PEC
+        const uint8_t data_offset = 1; // First byte is the bytecount
+        const uint8_t result_size = 4;
+        uint8_t pec = rbuf[rlen - 1];
+        uint8_t data_to_check[address_size + result_size + 4];
+        data_to_check[0] = config->retimer_addr << 1; // Write
+        data_to_check[1] = command_code_stop;
+        data_to_check[2] = (config->retimer_addr << 1) | 1; // Read
+        data_to_check[3] = bytecnt;
+        for (size_t i = 0; i < bytecnt; i++) {
+            data_to_check[i + 4] = rbuf[data_offset + i];
+        }
+        if (pec != cal_crc8(data_to_check, bytecnt + 4)) {
+            KANDOU_WARN("PEC mismatch: expected 0x%02x, got 0x%02x retrying...",
+                        cal_crc8(data_to_check, bytecnt + 4), pec); // FIXME logging level
+            nb_retry--;
+            continue;
+        }
+        // Copy the result to the result buffer
+        *value = 0;
+        for (size_t i = 0; i < result_size; i++) {
+            // As SMBus expect payload in little endian
+            // We reverse the payload to match the expected format
+            *value = *value | ((rbuf[bytecnt - result_size + i + 1] << (i * BITS_IN_BYTE)));
         }
         break;
     }
     if (nb_retry <= 0) {
-        KANDOU_ERR("Failed to communicate after 5 attempts");
+        KANDOU_ERR("Failed to communicate after 10 attempts, enable warning logs for more details");
         return -KB900X_E_ERR;
     }
 
